@@ -14,8 +14,7 @@ const storage = multer.diskStorage({
     cb(null, uploadPath);
   },
   filename: (_req, file, cb) => {
-    const safeName = file.originalname.replace(/\s+/g, "-").toLowerCase();
-    cb(null, `${Date.now()}-${safeName}`);
+    cb(null, `${Date.now()}-${file.originalname}`);
   },
 });
 
@@ -23,5 +22,14 @@ export const upload = multer({
   storage,
   limits: {
     fileSize: 5 * 1024 * 1024,
+  },
+  fileFilter: (_req, file, cb) => {
+    if (["image/jpeg", "image/png"].includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      const error = new Error("Invalid file type");
+      error.statusCode = 400;
+      cb(error);
+    }
   },
 });

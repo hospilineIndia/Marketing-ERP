@@ -28,6 +28,20 @@ const schemaSql = `
   );
 
   CREATE INDEX IF NOT EXISTS idx_leads_created_by ON leads(created_by);
+
+  CREATE TABLE IF NOT EXISTS visiting_cards (
+    id SERIAL PRIMARY KEY,
+    lead_id INTEGER NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+    image_url TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
+  CREATE TABLE IF NOT EXISTS notes (
+    id SERIAL PRIMARY KEY,
+    lead_id INTEGER NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+    text TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
 `;
 
 let schemaReady = false;

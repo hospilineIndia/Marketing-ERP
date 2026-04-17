@@ -1,8 +1,11 @@
 import cors from "cors";
 import express from "express";
+import path from "node:path";
 import authRoutes from "./modules/auth/auth.routes.js";
 import usersRoutes from "./modules/users/users.routes.js";
 import leadsRoutes from "./modules/leads/leads.routes.js";
+import cardsRoutes from "./modules/cards/cards.routes.js";
+import notesRoutes from "./modules/notes/notes.routes.js";
 import { env } from "./config/env.js";
 import { checkDatabaseConnection, initializeDatabase } from "./config/db.js";
 import { authenticate } from "./middlewares/auth.middleware.js";
@@ -24,6 +27,7 @@ app.use(
 );
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use("/uploads", express.static(path.resolve(process.cwd(), env.uploadDir)));
 app.use(authenticate);
 
 app.get("/api/health", async (_req, res) => {
@@ -39,6 +43,8 @@ app.get("/api/health", async (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/users", usersRoutes);
 app.use("/api/leads", leadsRoutes);
+app.use("/api/cards", cardsRoutes);
+app.use("/api/notes", notesRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
