@@ -11,6 +11,8 @@ import { checkDatabaseConnection, initializeDatabase } from "./config/db.js";
 import { authenticate } from "./middlewares/auth.middleware.js";
 import { errorHandler } from "./middlewares/error.middleware.js";
 import { notFoundHandler } from "./middlewares/not-found.middleware.js";
+import { extractTextFromImage } from "./utils/ocr.js";
+import { parseVisitingCardText } from "./utils/ai.js";
 
 const app = express();
 
@@ -45,6 +47,42 @@ app.use("/api/users", usersRoutes);
 app.use("/api/leads", leadsRoutes);
 app.use("/api/cards", cardsRoutes);
 app.use("/api/notes", notesRoutes);
+
+// TEMP: OCR Test Route
+app.get("/api/test-ocr", async (_req, res, next) => {
+  try {
+    // const testImagePath = path.resolve(process.cwd(), "uploads", "1776412563720-logo.jpg");
+    const testImagePath = path.resolve(process.cwd(), "uploads", "VISITING CARD OCR TEST.jpeg");
+    const text = await extractTextFromImage(testImagePath);
+
+    res.json({
+      data: {
+        text: text
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// TEMP: AI Test Route
+app.get("/api/test-ai", async (_req, res, next) => {
+  try {
+    const testImagePath = path.resolve(process.cwd(), "uploads", "VISITING CARD OCR TEST.jpeg");
+    const rawText = await extractTextFromImage(testImagePath);
+    const parsed = await parseVisitingCardText(rawText);
+
+    res.json({
+      data: {
+        raw_text: rawText,
+        parsed: parsed
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 
 app.use(notFoundHandler);
 app.use(errorHandler);
