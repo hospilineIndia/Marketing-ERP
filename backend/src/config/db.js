@@ -18,8 +18,11 @@ const schemaSql = `
   CREATE TABLE IF NOT EXISTS leads (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
-    phone TEXT NOT NULL,
+    phone TEXT,
+    email TEXT,
+    gst TEXT,
     company TEXT,
+    raw_data JSONB,
     latitude DOUBLE PRECISION,
     longitude DOUBLE PRECISION,
     created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -28,6 +31,8 @@ const schemaSql = `
   );
 
   CREATE INDEX IF NOT EXISTS idx_leads_created_by ON leads(created_by);
+  CREATE UNIQUE INDEX IF NOT EXISTS leads_user_phone_uniq ON leads (created_by, phone) WHERE phone IS NOT NULL;
+  CREATE UNIQUE INDEX IF NOT EXISTS leads_user_email_uniq ON leads (created_by, email) WHERE email IS NOT NULL;
 
   CREATE TABLE IF NOT EXISTS visiting_cards (
     id SERIAL PRIMARY KEY,
@@ -71,6 +76,38 @@ export const initializeDatabase = async () => {
     `);
   } catch (error) {
     console.warn("Could not ensure company is nullable in leads table:", error.message);
+  }
+
+  // Migration: Ensure phone is nullable in leads
+  try {
+    await db.query(`
+      ALTER TABLE leads 
+      ALTER COLUMN phone DROP NOT NULL;
+    `);
+  } catch (error) {
+    console.warn("Could not ensure phone is nullable in leads table:", error.message);
+  }
+
+  // Migration: Add email, gst, raw_data columns if they don't exist
+  try {
+    await db.query(`
+      ALTER TABLE leads 
+      ADD COLUMN IF NOT EXISTS email TEXT,
+      ADD COLUMN IF NOT EXISTS gst TEXT,
+      ADD COLUMN IF NOT EXISTS raw_data JSONB;
+    `);
+  } catch (error) {
+    console.warn("Could not add new columns to leads table:", error.message);
+  }
+
+  // Migration: Add unique partial indexes
+  try {
+    await db.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS leads_user_phone_uniq ON leads (created_by, phone) WHERE phone IS NOT NULL;
+      CREATE UNIQUE INDEX IF NOT EXISTS leads_user_email_uniq ON leads (created_by, email) WHERE email IS NOT NULL;
+    `);
+  } catch (error) {
+    console.warn("Could not create unique indexes on leads table:", error.message);
   }
 
   schemaReady = true;

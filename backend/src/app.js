@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
 import path from "node:path";
+import fs from "node:fs";
 import authRoutes from "./modules/auth/auth.routes.js";
 import usersRoutes from "./modules/users/users.routes.js";
 import leadsRoutes from "./modules/leads/leads.routes.js";
@@ -49,11 +50,21 @@ app.use("/api/cards", cardsRoutes);
 app.use("/api/notes", notesRoutes);
 
 // TEMP: OCR Test Route
-app.get("/api/test-ocr", async (_req, res, next) => {
+app.get("/api/test-ocr", async (req, res, next) => {
   try {
-    // const testImagePath = path.resolve(process.cwd(), "uploads", "1776412563720-logo.jpg");
-    const testImagePath = path.resolve(process.cwd(), "uploads", "VISITING CARD OCR TEST.jpeg");
-    const text = await extractTextFromImage(testImagePath);
+    const { filename } = req.query;
+
+    if (!filename) {
+      return res.status(400).json({ error: "filename query param is required" });
+    }
+
+    const imagePath = path.resolve(process.cwd(), "uploads", filename);
+
+    if (!fs.existsSync(imagePath)) {
+      return res.status(404).json({ error: "File not found in uploads folder" });
+    }
+
+    const text = await extractTextFromImage(imagePath);
 
     res.json({
       data: {
