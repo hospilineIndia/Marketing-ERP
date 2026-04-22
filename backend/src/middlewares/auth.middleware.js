@@ -1,5 +1,4 @@
-import jwt from "jsonwebtoken";
-import { env } from "../config/env.js";
+import { verifyAccessToken } from "../utils/tokens.js";
 
 export const authenticate = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -12,7 +11,7 @@ export const authenticate = (req, res, next) => {
   const token = authHeader.replace("Bearer ", "");
 
   try {
-    req.user = jwt.verify(token, env.jwtSecret);
+    req.user = verifyAccessToken(token);
   } catch (_error) {
     return res.status(401).json({
       error: "Unauthorized",

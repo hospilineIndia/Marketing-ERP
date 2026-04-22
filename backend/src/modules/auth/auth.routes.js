@@ -8,6 +8,13 @@ import {
   requireKnownUser,
 } from "../../middlewares/auth.middleware.js";
 import { badRequest, isBlank } from "../../utils/validation.js";
+import { 
+  generateAccessToken, 
+  generateRefreshToken, 
+  hashToken, 
+  verifyRefreshToken, 
+  compareTokens 
+} from "../../utils/tokens.js";
 
 const router = Router();
 
@@ -21,7 +28,7 @@ router.post("/login", async (req, res, next) => {
 
     const result = await db.query(
       `
-        SELECT id, name, email, password, role
+        SELECT id, name, email, password, role, token_version
         FROM users
         WHERE email = $1
       `,
@@ -44,19 +51,21 @@ router.post("/login", async (req, res, next) => {
       });
     }
 
-    const token = jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-      },
-      env.jwtSecret,
-      { expiresIn: env.jwtExpiresIn },
+    // Generate Tokens
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+
+    // Hash and store Refresh Token
+    const hashedRefresh = await hashToken(refreshToken);
+    await db.query(
+      "UPDATE users SET refresh_token = $1 WHERE id = $2",
+      [hashedRefresh, user.id]
     );
 
     res.json({
       data: {
-        token,
+        accessToken,
+        refreshToken,
         user: {
           id: user.id,
           name: user.name,
@@ -65,6 +74,80 @@ router.post("/login", async (req, res, next) => {
         },
       },
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/refresh", async (req, res, next) => {
+  try {
+    const { refreshToken } = req.query.refreshToken ? req.query : req.body;
+
+    if (!refreshToken) {
+      throw badRequest("Refresh token is required.");
+    }
+
+    // 1. Verify Token Signature
+    let payload;
+    try {
+      payload = verifyRefreshToken(refreshToken);
+    } catch (err) {
+      console.error("JWT Verify Error:", err.message);
+      return res.status(401).json({ error: "Invalid refresh token signature" });
+    }
+
+    // 2. Fetch User and check Version + Hash
+    const result = await db.query(
+      "SELECT id, email, role, refresh_token, token_version FROM users WHERE id = $1",
+      [payload.id]
+    );
+    const user = result.rows[0];
+
+    // DEBUG LOGS
+    console.log("---- REFRESH DEBUG ----");
+    console.log("Token (partial):", refreshToken.slice(0, 20));
+    console.log("Decoded Payload:", payload);
+    console.log("DB userId:", user?.id);
+    console.log("DB token_version:", user?.token_version);
+    console.log("Token tokenVersion:", payload.tokenVersion);
+
+    if (!user) {
+      return res.status(401).json({ error: "User not found" });
+    }
+
+    if (payload.tokenVersion !== user.token_version) {
+      console.log("CRITICAL: Token version mismatch!");
+      return res.status(401).json({ error: "Token version mismatch" });
+    }
+
+    // 3. Compare with stored hash
+    const isMatch = await compareTokens(refreshToken, user.refresh_token);
+    console.log("Bcrypt match:", isMatch);
+
+    if (!isMatch) {
+      return res.status(401).json({ error: "Invalid refresh token session" });
+    }
+
+    // 4. Issue new Access Token
+    const accessToken = generateAccessToken(user);
+
+    res.json({
+      data: { accessToken }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/logout", requireAuth, async (req, res, next) => {
+  try {
+    // Invalidate refresh token in DB
+    await db.query(
+      "UPDATE users SET refresh_token = NULL WHERE id = $1",
+      [req.user.id]
+    );
+
+    res.json({ message: "Logged out successfully" });
   } catch (error) {
     next(error);
   }

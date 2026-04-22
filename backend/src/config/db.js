@@ -12,6 +12,8 @@ const schemaSql = `
     email TEXT NOT NULL UNIQUE,
     password TEXT NOT NULL,
     role TEXT NOT NULL CHECK (role IN ('admin', 'field')),
+    refresh_token TEXT,
+    token_version INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
 
@@ -57,6 +59,17 @@ export const initializeDatabase = async () => {
   }
 
   await db.query(schemaSql);
+
+  // Migration: Add refresh_token and token_version to users
+  try {
+    await db.query(`
+      ALTER TABLE users 
+      ADD COLUMN IF NOT EXISTS refresh_token TEXT,
+      ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
+    `);
+  } catch (error) {
+    console.warn("Could not add refresh columns to users table:", error.message);
+  }
 
   // Migration: Ensure updated_at exists in leads
   try {

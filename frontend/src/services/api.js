@@ -20,4 +20,12 @@ api.interceptors.request.use((config) => {
 });
 
 export { storageKey };
+
+export const getLeads = async (page = 1, limit = 20) => {
+  const response = await api.get("/leads", {
+    params: { page, limit },
+  });
+  return response.data;
+};
+
 export default api;

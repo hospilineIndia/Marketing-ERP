@@ -9,8 +9,10 @@ export const env = {
   databaseUrl:
     process.env.DATABASE_URL ||
     "postgresql://postgres:postgres@localhost:5432/marketing_erp",
-  jwtSecret: process.env.JWT_SECRET || "replace-with-a-secure-secret",
-  jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
+  jwtSecret: process.env.JWT_SECRET || "access-secret-change-me",
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || "15m",
+  refreshSecret: process.env.REFRESH_SECRET || "refresh-secret-change-me",
+  refreshExpiresIn: process.env.REFRESH_EXPIRES_IN || "7d",
   redisHost: process.env.REDIS_HOST || "127.0.0.1",
   redisPort: Number(process.env.REDIS_PORT || 6379),
   uploadDir: process.env.UPLOAD_DIR || "uploads",
