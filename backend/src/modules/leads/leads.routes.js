@@ -6,6 +6,8 @@ import {
 } from "../../middlewares/auth.middleware.js";
 import { badRequest, isBlank } from "../../utils/validation.js";
 import { cleanName, cleanPhone, cleanEmail, cleanGST } from "../../utils/cleaners.js";
+import { tokenizeSearchQuery } from "../../utils/search.js";
+import { buildLeadSearchQuery } from "../../utils/searchQueryBuilder.js";
 
 const router = Router();
 
@@ -23,6 +25,103 @@ router.get("/", requireAuth, requireKnownUser, async (req, res, next) => {
 
     res.json({
       data: result.rows,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/search", requireAuth, requireKnownUser, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { q, page = 1, limit = 20 } = req.query;
+
+    const parsedPage = Math.max(1, Number(page));
+    const parsedLimit = Math.min(100, Math.max(1, Number(limit)));
+    const offset = (parsedPage - 1) * parsedLimit;
+
+    // Handle empty query
+    const tokenized = tokenizeSearchQuery(q);
+    if (!tokenized) {
+      return res.json({
+        data: [],
+        pagination: {
+          page: parsedPage,
+          limit: parsedLimit,
+          total: 0,
+          hasMore: false,
+        },
+      });
+    }
+
+    // Build dynamic search query
+    const search = buildLeadSearchQuery(userId, tokenized.patterns);
+
+    // 1. Prepare values array: [userId, ...patterns, firstToken, limit, offset]
+    const firstToken = tokenized.tokens[0];
+    const rankIdx = search.values.length + 1;
+    const limitIdx = search.values.length + 2;
+    const offsetIdx = search.values.length + 3;
+
+    const dataValues = [...search.values, firstToken, parsedLimit, offset];
+    
+    console.log("Search Debug:", {
+      patterns: tokenized.patterns,
+      firstToken,
+      whereClause: search.whereClause,
+      rankIdx,
+      limitIdx,
+      offsetIdx
+    });
+
+    // 2. Final Data Query with Advanced Ranking
+    // Priority: 
+    // 0. Exact Name match
+    // 1. Name starts with token
+    // 2. Name contains token (ILIKE $2 is %token%)
+    // 3. Company contains token
+    // 4. Email contains token
+    // 5. Phone contains token
+    const dataQuery = `
+      SELECT *
+      FROM leads
+      WHERE ${search.whereClause}
+      ORDER BY 
+        CASE 
+          WHEN LOWER(name) = $${rankIdx} THEN 0
+          WHEN name ILIKE $${rankIdx} || '%' THEN 1
+          WHEN name ILIKE $2 THEN 2
+          WHEN company ILIKE $2 THEN 3
+          WHEN email ILIKE $2 THEN 4
+          WHEN phone LIKE $2 THEN 5
+          ELSE 6
+        END,
+        created_at DESC
+      LIMIT $${limitIdx} OFFSET $${offsetIdx}
+    `;
+    console.log("Final SQL Query with Advanced Ranking:", dataQuery);
+
+    const dataResult = await db.query(dataQuery, dataValues);
+
+    // 4. Total Count Query (Uses base search values: [userId, ...patterns])
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM leads
+      WHERE ${search.whereClause}
+    `;
+    const countResult = await db.query(countQuery, search.values);
+    const total = parseInt(countResult.rows[0].total, 10);
+
+    const hasMore = (offset + dataResult.rowCount) < total;
+
+    res.json({
+      data: dataResult.rows,
+      pagination: {
+        page: parsedPage,
+        limit: parsedLimit,
+        total,
+        hasMore,
+      },
     });
   } catch (error) {
     next(error);
