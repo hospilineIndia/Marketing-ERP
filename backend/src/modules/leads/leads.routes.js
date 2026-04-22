@@ -13,18 +13,39 @@ const router = Router();
 
 router.get("/", requireAuth, requireKnownUser, async (req, res, next) => {
   try {
-    const result = await db.query(
-      `
-        SELECT id, name, phone, company, latitude, longitude, created_by, created_at, updated_at
-        FROM leads
-        WHERE created_by = $1
-        ORDER BY created_at DESC, id DESC
-      `,
-      [req.user.id],
+    const userId = req.user.id;
+    const { page = 1, limit = 20 } = req.query;
+
+    const parsedPage = Math.max(1, Number(page));
+    const parsedLimit = Math.min(50, Math.max(1, Number(limit)));
+    const offset = (parsedPage - 1) * parsedLimit;
+
+    // 1. Fetch lightweight lead data (No raw_data for performance)
+    const dataQuery = `
+      SELECT id, name, phone, email, company, created_at
+      FROM leads
+      WHERE created_by = $1
+      ORDER BY created_at DESC
+      LIMIT $2 OFFSET $3
+    `;
+    const dataResult = await db.query(dataQuery, [userId, parsedLimit, offset]);
+
+    // 2. Fetch total count for pagination metadata
+    const countResult = await db.query(
+      "SELECT COUNT(*) as total FROM leads WHERE created_by = $1",
+      [userId],
     );
+    const total = parseInt(countResult.rows[0].total, 10);
+    const hasMore = offset + dataResult.rowCount < total;
 
     res.json({
-      data: result.rows,
+      data: dataResult.rows,
+      pagination: {
+        page: parsedPage,
+        limit: parsedLimit,
+        total,
+        hasMore,
+      },
     });
   } catch (error) {
     next(error);
@@ -40,9 +61,22 @@ router.get("/search", requireAuth, requireKnownUser, async (req, res, next) => {
     const parsedLimit = Math.min(100, Math.max(1, Number(limit)));
     const offset = (parsedPage - 1) * parsedLimit;
 
-    // Handle empty query
+    // Guardrail: Minimum search length (2 chars)
+    if (!q || q.trim().length < 2) {
+      return res.json({
+        data: [],
+        pagination: {
+          page: parsedPage,
+          limit: parsedLimit,
+          total: 0,
+          hasMore: false,
+        },
+      });
+    }
+
+    // Handle empty query (Double check via tokenizer)
     const tokenized = tokenizeSearchQuery(q);
-    if (!tokenized) {
+    if (!tokenized || !tokenized.patterns || tokenized.patterns.length === 0) {
       return res.json({
         data: [],
         pagination: {
@@ -56,6 +90,17 @@ router.get("/search", requireAuth, requireKnownUser, async (req, res, next) => {
 
     // Build dynamic search query
     const search = buildLeadSearchQuery(userId, tokenized.patterns);
+    if (!search || !search.whereClause || !search.values) {
+      return res.json({
+        data: [],
+        pagination: {
+          page: parsedPage,
+          limit: parsedLimit,
+          total: 0,
+          hasMore: false,
+        },
+      });
+    }
 
     // 1. Prepare values array: [userId, ...patterns, firstToken, limit, offset]
     const firstToken = tokenized.tokens[0];
@@ -83,7 +128,7 @@ router.get("/search", requireAuth, requireKnownUser, async (req, res, next) => {
     // 4. Email contains token
     // 5. Phone contains token
     const dataQuery = `
-      SELECT *
+      SELECT id, name, phone, email, company, created_at
       FROM leads
       WHERE ${search.whereClause}
       ORDER BY 

@@ -110,6 +110,29 @@ export const initializeDatabase = async () => {
     console.warn("Could not create unique indexes on leads table:", error.message);
   }
 
+  // Migration: Correct Trigram Indexes (Individual instead of Composite)
+  try {
+    await db.query("CREATE EXTENSION IF NOT EXISTS pg_trgm;");
+
+    // 1. Cleanup incorrect composite indexes
+    await db.query(`
+      DROP INDEX IF EXISTS idx_leads_user_name_trgm;
+      DROP INDEX IF EXISTS idx_leads_user_company_trgm;
+      DROP INDEX IF EXISTS idx_leads_user_email_trgm;
+    `);
+
+    // 2. Create individual GIN Trigram Indexes
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_leads_name_trgm ON leads USING gin (name gin_trgm_ops);
+      CREATE INDEX IF NOT EXISTS idx_leads_company_trgm ON leads USING gin (company gin_trgm_ops);
+      CREATE INDEX IF NOT EXISTS idx_leads_email_trgm ON leads USING gin (email gin_trgm_ops);
+    `);
+    
+    console.info("Database performance indexes (Corrected Trigram) verified.");
+  } catch (error) {
+    console.warn("Could not correct GIN Trigram indexes:", error.message);
+  }
+
   schemaReady = true;
 };
 
