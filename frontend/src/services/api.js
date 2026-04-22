@@ -88,5 +88,10 @@ export const getLeads = async (page = 1, limit = 20) => {
   return response.data;
 };
 
+export const createLead = async (data) => {
+  const response = await api.post("/leads", data);
+  return response.data;
+};
+
 export { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY };
 export default api;
