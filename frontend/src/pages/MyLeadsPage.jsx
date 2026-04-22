@@ -10,6 +10,8 @@ export function MyLeadsPage() {
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
   const resetLeadsState = () => {
     setLeads([]);
     setPage(1);
@@ -22,11 +24,17 @@ export function MyLeadsPage() {
       setLoadingInitial(true);
       setError(null);
       const response = await getLeads(1);
+      
+      if (!response || !response.data) {
+        setError("Failed to load leads");
+        return;
+      }
+
+      setError(null);
       setLeads(response.data);
-      setHasMore(response.pagination.hasMore);
+      setHasMore(response.pagination?.hasMore || false);
       setPage(1);
     } catch (err) {
-      console.error("Initial fetch failed:", err);
       setError("Failed to load leads. Please try again.");
     } finally {
       setLoadingInitial(false);
@@ -47,18 +55,17 @@ export function MyLeadsPage() {
       const nextPage = page + 1;
       const response = await getLeads(nextPage);
       
-      // Requirement 1: Explicitly append data
       setLeads((prev) => [...prev, ...response.data]);
       setHasMore(response.pagination.hasMore);
       setPage(nextPage);
     } catch (err) {
       console.error("Load more failed:", err);
-      // We don't clear existing leads on pagination error
     } finally {
       setLoadingMore(false);
     }
   };
 
+  // Rendering Logic (Priority: Loading > Error > Empty > List)
   if (loadingInitial) {
     return (
       <div className="flex min-h-[400px] flex-col items-center justify-center space-y-3 py-12">
@@ -68,12 +75,21 @@ export function MyLeadsPage() {
     );
   }
 
-  if (error && leads.length === 0) {
+  if (error) {
     return (
       <div className="flex min-h-[400px] flex-col items-center justify-center space-y-4 py-12 text-center">
         <AlertCircle className="h-10 w-10 text-destructive" />
         <p className="font-medium text-destructive">{error}</p>
         <Button onClick={() => window.location.reload()}>Retry</Button>
+      </div>
+    );
+  }
+
+  if (leads.length === 0) {
+    return (
+      <div className="text-center py-20">
+        <p className="text-gray-500 text-lg font-medium">No leads yet</p>
+        <p className="text-sm text-gray-400 mt-2">Start by adding your first lead</p>
       </div>
     );
   }
@@ -157,13 +173,6 @@ export function MyLeadsPage() {
         </div>
       )}
 
-      {/* Empty State */}
-      {!loadingInitial && leads.length === 0 && (
-        <div className="py-20 text-center space-y-2">
-          <p className="text-lg font-bold text-muted-foreground">Empty Pipeline</p>
-          <p className="text-sm text-muted-foreground/60">Upload a visiting card to get started.</p>
-        </div>
-      )}
     </div>
   );
 }

@@ -103,26 +103,16 @@ router.post("/refresh", async (req, res, next) => {
     );
     const user = result.rows[0];
 
-    // DEBUG LOGS
-    console.log("---- REFRESH DEBUG ----");
-    console.log("Token (partial):", refreshToken.slice(0, 20));
-    console.log("Decoded Payload:", payload);
-    console.log("DB userId:", user?.id);
-    console.log("DB token_version:", user?.token_version);
-    console.log("Token tokenVersion:", payload.tokenVersion);
-
     if (!user) {
       return res.status(401).json({ error: "User not found" });
     }
 
     if (payload.tokenVersion !== user.token_version) {
-      console.log("CRITICAL: Token version mismatch!");
       return res.status(401).json({ error: "Token version mismatch" });
     }
 
     // 3. Compare with stored hash
     const isMatch = await compareTokens(refreshToken, user.refresh_token);
-    console.log("Bcrypt match:", isMatch);
 
     if (!isMatch) {
       return res.status(401).json({ error: "Invalid refresh token session" });

@@ -30,6 +30,14 @@ app.use(
 );
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// --- Global Cache Control: Disable all caching ---
+app.use((_req, res, next) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.set("Pragma", "no-cache");
+  res.set("Expires", "0");
+  next();
+});
 app.use("/uploads", express.static(path.resolve(process.cwd(), env.uploadDir)));
 app.use(authenticate);
 
@@ -48,52 +56,6 @@ app.use("/api/users", usersRoutes);
 app.use("/api/leads", leadsRoutes);
 app.use("/api/cards", cardsRoutes);
 app.use("/api/notes", notesRoutes);
-
-// TEMP: OCR Test Route
-app.get("/api/test-ocr", async (req, res, next) => {
-  try {
-    const { filename } = req.query;
-
-    if (!filename) {
-      return res.status(400).json({ error: "filename query param is required" });
-    }
-
-    const imagePath = path.resolve(process.cwd(), "uploads", filename);
-
-    if (!fs.existsSync(imagePath)) {
-      return res.status(404).json({ error: "File not found in uploads folder" });
-    }
-
-    const text = await extractTextFromImage(imagePath);
-
-    res.json({
-      data: {
-        text: text
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// TEMP: AI Test Route
-app.get("/api/test-ai", async (_req, res, next) => {
-  try {
-    const testImagePath = path.resolve(process.cwd(), "uploads", "VISITING CARD OCR TEST.jpeg");
-    const rawText = await extractTextFromImage(testImagePath);
-    const parsed = await parseVisitingCardText(rawText);
-
-    res.json({
-      data: {
-        raw_text: rawText,
-        parsed: parsed
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
 
 app.use(notFoundHandler);
 app.use(errorHandler);

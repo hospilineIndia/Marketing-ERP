@@ -1,25 +1,27 @@
 import { createContext, useContext, useState } from "react";
-import { storageKey } from "@/services/api";
+import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from "@/services/api";
 
 const AuthContext = createContext(null);
 const userStorageKey = "marketing-erp-user";
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem(storageKey));
+  const [token, setToken] = useState(() => localStorage.getItem(ACCESS_TOKEN_KEY));
   const [user, setUser] = useState(() => {
     const storedUser = localStorage.getItem(userStorageKey);
     return storedUser ? JSON.parse(storedUser) : null;
   });
 
-  const login = ({ token: nextToken, user: nextUser }) => {
-    localStorage.setItem(storageKey, nextToken);
+  const login = ({ accessToken, refreshToken, user: nextUser }) => {
+    localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
     localStorage.setItem(userStorageKey, JSON.stringify(nextUser));
-    setToken(nextToken);
+    setToken(accessToken);
     setUser(nextUser);
   };
 
   const logout = () => {
-    localStorage.removeItem(storageKey);
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(userStorageKey);
     setToken(null);
     setUser(null);
