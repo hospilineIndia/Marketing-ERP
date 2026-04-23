@@ -93,5 +93,12 @@ export const createLead = async (data) => {
   return response.data;
 };
 
+export const searchLeads = async (query) => {
+  const response = await api.get("/leads/search", {
+    params: { q: query },
+  });
+  return response.data;
+};
+
 export { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY };
 export default api;

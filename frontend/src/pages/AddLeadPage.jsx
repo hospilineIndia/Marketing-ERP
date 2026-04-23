@@ -44,7 +44,7 @@ export function AddLeadPage() {
   };
 
   return (
-    <div className="space-y-4 pb-10">
+    <div className="space-y-4 pb-32 overflow-x-hidden max-w-full">
       {/* Promotion Header */}
       <Card className="border-none bg-primary text-primary-foreground shadow-lg overflow-hidden">
         <div className="absolute right-0 top-0 -mr-8 -mt-8 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
