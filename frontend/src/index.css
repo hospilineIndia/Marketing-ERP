@@ -35,11 +35,12 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background text-foreground antialiased overflow-x-hidden;
     margin: 0;
     min-height: 100vh;
     font-family: ui-sans-serif, system-ui, sans-serif;
     background-color: hsl(var(--background));
+    overflow-x: hidden;
   }
 
   #root {
