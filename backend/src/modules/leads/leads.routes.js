@@ -209,7 +209,7 @@ router.get("/by-phone", requireAuth, requireKnownUser, async (req, res, next) =>
 });
 
 router.post("/", requireAuth, requireKnownUser, async (req, res, next) => {
-  const client = await db.getClient();
+  const client = await db.connect();
 
   try {
     const { name, phone, company, email, activity_type = 'field', notes, latitude, longitude } = req.body;

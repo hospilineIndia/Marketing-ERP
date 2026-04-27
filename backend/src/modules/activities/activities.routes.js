@@ -6,7 +6,7 @@ import { cleanText } from "../../utils/cleaners.js";
 const router = Router();
 
 router.post("/", requireAuth, requireKnownUser, async (req, res, next) => {
-  const client = await db.getClient();
+  const client = await db.connect();
 
   try {
     const { lead_id, activity_type, notes, call_outcome, duration_seconds, follow_up_required } = req.body;
