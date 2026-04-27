@@ -146,6 +146,37 @@ export const initializeDatabase = async () => {
     console.warn("Could not correct GIN Trigram indexes:", error.message);
   }
 
+  // Migration: Add activity tracking columns to leads
+  try {
+    await db.query(`
+      ALTER TABLE leads 
+      ADD COLUMN IF NOT EXISTS last_activity_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS last_activity_type VARCHAR(20);
+    `);
+  } catch (error) {
+    console.warn("Could not add activity columns to leads table:", error.message);
+  }
+
+  // Migration: Create activities table
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS activities (
+        id SERIAL PRIMARY KEY,
+        lead_id INTEGER NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+        activity_type VARCHAR(20) NOT NULL CHECK (activity_type IN ('field', 'call')),
+        notes TEXT,
+        call_outcome VARCHAR(50),
+        duration_seconds INTEGER,
+        follow_up_required BOOLEAN DEFAULT false,
+        created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_activities_lead_id ON activities(lead_id);
+    `);
+  } catch (error) {
+    console.warn("Could not create activities table:", error.message);
+  }
+
   schemaReady = true;
 };
 
