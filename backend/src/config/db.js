@@ -146,20 +146,21 @@ export const initializeDatabase = async () => {
     console.warn("Could not correct GIN Trigram indexes:", error.message);
   }
 
-  // Migration: Add activity tracking columns to leads
+  // Migration: Activity Tracking System
   try {
     await db.query(`
+      -- 1. Add last_activity columns to leads
       ALTER TABLE leads 
       ADD COLUMN IF NOT EXISTS last_activity_at TIMESTAMPTZ,
       ADD COLUMN IF NOT EXISTS last_activity_type VARCHAR(20);
-    `);
-  } catch (error) {
-    console.warn("Could not add activity columns to leads table:", error.message);
-  }
 
-  // Migration: Create activities table
-  try {
-    await db.query(`
+      -- 2. Backfill existing leads with a default activity timestamp if missing
+      UPDATE leads
+      SET last_activity_at = created_at,
+          last_activity_type = 'field'
+      WHERE last_activity_at IS NULL;
+
+      -- 3. Create activities table
       CREATE TABLE IF NOT EXISTS activities (
         id SERIAL PRIMARY KEY,
         lead_id INTEGER NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
@@ -167,14 +168,18 @@ export const initializeDatabase = async () => {
         notes TEXT,
         call_outcome VARCHAR(50),
         duration_seconds INTEGER,
-        follow_up_required BOOLEAN DEFAULT false,
+        follow_up_required BOOLEAN DEFAULT FALSE,
         created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
+      -- 4. Create performance indexes
       CREATE INDEX IF NOT EXISTS idx_activities_lead_id ON activities(lead_id);
+      CREATE INDEX IF NOT EXISTS idx_leads_last_activity ON leads(last_activity_at DESC);
     `);
+    console.info("Activity Tracking database schema verified.");
   } catch (error) {
-    console.warn("Could not create activities table:", error.message);
+    console.warn("Could not setup Activity Tracking schema:", error.message);
   }
 
   schemaReady = true;
