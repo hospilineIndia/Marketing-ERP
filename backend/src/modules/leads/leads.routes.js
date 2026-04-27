@@ -22,10 +22,10 @@ router.get("/", requireAuth, requireKnownUser, async (req, res, next) => {
 
     // 1. Fetch lightweight lead data (No raw_data for performance)
     const dataQuery = `
-      SELECT id, name, phone, email, company, created_at
+      SELECT id, name, phone, email, company, created_at, last_activity_at, last_activity_type
       FROM leads
       WHERE created_by = $1
-      ORDER BY created_at DESC
+      ORDER BY last_activity_at DESC NULLS LAST, created_at DESC
       LIMIT $2 OFFSET $3
     `;
     const dataResult = await db.query(dataQuery, [userId, parsedLimit, offset]);
@@ -128,7 +128,7 @@ router.get("/search", requireAuth, requireKnownUser, async (req, res, next) => {
     // 4. Email contains token
     // 5. Phone contains token
     const dataQuery = `
-      SELECT id, name, phone, email, company, created_at
+      SELECT id, name, phone, email, company, created_at, last_activity_at, last_activity_type
       FROM leads
       WHERE ${search.whereClause}
       ORDER BY 
@@ -141,6 +141,7 @@ router.get("/search", requireAuth, requireKnownUser, async (req, res, next) => {
           WHEN phone LIKE $2 THEN 5
           ELSE 6
         END,
+        last_activity_at DESC NULLS LAST,
         created_at DESC
       LIMIT $${limitIdx} OFFSET $${offsetIdx}
     `;
