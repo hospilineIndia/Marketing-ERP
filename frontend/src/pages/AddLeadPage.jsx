@@ -206,18 +206,22 @@ export function AddLeadPage() {
     setError(null);
     setSuccess(false);
 
-    if (formData.activity_type === 'field' && "geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          submitForm(position.coords.latitude, position.coords.longitude);
-        },
-        (err) => {
-          console.warn("Location not captured", err);
-          submitForm(null, null);
-        },
-        { timeout: 5000 }
-      );
-    } else {
+    try {
+      if (formData.activity_type === 'field' && "geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            submitForm(position.coords.latitude, position.coords.longitude);
+          },
+          (err) => {
+            console.warn("Location not captured", err);
+            submitForm(null, null);
+          },
+          { timeout: 5000 }
+        );
+      } else {
+        submitForm(null, null);
+      }
+    } catch {
       submitForm(null, null);
     }
   };

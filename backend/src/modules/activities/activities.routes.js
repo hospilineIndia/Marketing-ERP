@@ -11,6 +11,12 @@ router.post("/", requireAuth, requireKnownUser, async (req, res, next) => {
   try {
     const { lead_id, activity_type, notes, call_outcome, duration_seconds, follow_up_required, latitude, longitude } = req.body;
 
+    const safeNumber = (val) => {
+      if (val === undefined || val === null || val === "") return null;
+      const num = Number(val);
+      return isNaN(num) ? null : num;
+    };
+
     if (!lead_id || !activity_type) {
       return res.status(400).json({ error: "lead_id and activity_type are required." });
     }
@@ -49,8 +55,8 @@ router.post("/", requireAuth, requireKnownUser, async (req, res, next) => {
       duration_seconds !== undefined && duration_seconds !== null ? Number(duration_seconds) : null,
       Boolean(follow_up_required),
       req.user.id,
-      activity_type === 'field' && latitude ? Number(latitude) : null,
-      activity_type === 'field' && longitude ? Number(longitude) : null
+      activity_type === 'field' ? safeNumber(latitude) : null,
+      activity_type === 'field' ? safeNumber(longitude) : null
     ];
 
     const activityResult = await client.query(insertActivityQuery, activityValues);
