@@ -5,7 +5,7 @@ import {
   requireKnownUser,
 } from "../../middlewares/auth.middleware.js";
 import { badRequest, isBlank } from "../../utils/validation.js";
-import { cleanName, cleanPhone, cleanEmail, cleanGST } from "../../utils/cleaners.js";
+import { cleanName, cleanPhone, cleanEmail, cleanGST, cleanText } from "../../utils/cleaners.js";
 import { tokenizeSearchQuery } from "../../utils/search.js";
 import { buildLeadSearchQuery } from "../../utils/searchQueryBuilder.js";
 
@@ -173,59 +173,119 @@ router.get("/search", requireAuth, requireKnownUser, async (req, res, next) => {
   }
 });
 
-router.post("/", requireAuth, requireKnownUser, async (req, res, next) => {
+router.get("/by-phone", requireAuth, requireKnownUser, async (req, res, next) => {
   try {
-    const { name, phone, company, latitude, longitude } = req.body;
+    const { phone } = req.query;
 
-    if ([name, phone].some(isBlank)) {
-      throw badRequest("Name and phone are required.");
+    if (!phone || String(phone).trim() === "") {
+      return res.status(400).json({ error: "Phone number is required." });
     }
 
-    const parsedLatitude =
-      latitude === undefined || latitude === null || latitude === ""
-        ? null
-        : Number(latitude);
-    const parsedLongitude =
-      longitude === undefined || longitude === null || longitude === ""
-        ? null
-        : Number(longitude);
-
-    if (parsedLatitude !== null && Number.isNaN(parsedLatitude)) {
-      throw badRequest("Latitude must be a valid number.");
+    const cleanedPhone = cleanPhone(String(phone).trim());
+    
+    if (!cleanedPhone) {
+      return res.status(400).json({ error: "Invalid phone number format." });
     }
 
-    if (parsedLongitude !== null && Number.isNaN(parsedLongitude)) {
-      throw badRequest("Longitude must be a valid number.");
-    }
+    const query = `
+      SELECT id, name, company 
+      FROM leads 
+      WHERE phone = $1 AND created_by = $2
+    `;
+    
+    const result = await db.query(query, [cleanedPhone, req.user.id]);
 
-    let result;
-    try {
-      result = await db.query(
-        `
-          INSERT INTO leads (name, phone, company, latitude, longitude, created_by, updated_at)
-          VALUES ($1, $2, $3, $4, $5, $6, NOW())
-          RETURNING id, name, phone, company, latitude, longitude, created_by, created_at, updated_at
-        `,
-        [
-          String(name).trim(),
-          String(phone).trim(),
-          isBlank(company) ? null : String(company).trim(),
-          parsedLatitude,
-          parsedLongitude,
-          req.user.id,
-        ],
-      );
-    } catch (dbError) {
-      return res.status(400).json({
-        error: "Invalid input",
+    if (result.rowCount > 0) {
+      return res.json({
+        exists: true,
+        lead: result.rows[0]
       });
     }
 
-    res.status(201).json({
-      data: result.rows[0],
-    });
+    return res.json({ exists: false });
   } catch (error) {
     next(error);
+  }
+});
+
+router.post("/", requireAuth, requireKnownUser, async (req, res, next) => {
+  const client = await db.getClient();
+
+  try {
+    const { name, phone, company, email, activity_type = 'field', notes, latitude, longitude } = req.body;
+
+    const cleanedName = cleanText(name);
+    if (!cleanedName) {
+      return res.status(400).json({ error: "Valid name is required." });
+    }
+
+    const cleanedPhone = phone ? cleanPhone(String(phone).trim()) : null;
+    if (!cleanedPhone) {
+      return res.status(400).json({ error: "Valid phone is required." });
+    }
+
+    if (!['field', 'call'].includes(activity_type)) {
+      return res.status(400).json({ error: "Invalid activity_type. Must be 'field' or 'call'." });
+    }
+
+    const parseNumberOrNull = (val) => {
+      if (val === undefined || val === null || val === "") return null;
+      const num = Number(val);
+      return isNaN(num) ? null : num;
+    };
+
+    const parsedLatitude = parseNumberOrNull(latitude);
+    const parsedLongitude = parseNumberOrNull(longitude);
+
+    await client.query('BEGIN');
+
+    const insertLeadQuery = `
+      INSERT INTO leads (name, phone, company, email, latitude, longitude, created_by, last_activity_at, last_activity_type)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8)
+      RETURNING *;
+    `;
+
+    const leadValues = [
+      cleanedName,
+      cleanedPhone,
+      cleanText(company),
+      cleanText(email),
+      parsedLatitude,
+      parsedLongitude,
+      req.user.id,
+      activity_type
+    ];
+
+    const leadResult = await client.query(insertLeadQuery, leadValues);
+    const newLead = leadResult.rows[0];
+
+    const insertActivityQuery = `
+      INSERT INTO activities (lead_id, activity_type, notes, created_by)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *;
+    `;
+
+    await client.query(insertActivityQuery, [
+      newLead.id,
+      activity_type,
+      cleanText(notes),
+      req.user.id
+    ]);
+
+    await client.query('COMMIT');
+
+    res.status(201).json({
+      data: newLead
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    
+    if (error.code === '23505') { 
+      return res.status(409).json({ error: "Duplicate lead exists" });
+    }
+    next(error);
+  } finally {
+    client.release();
   }
 });
 

@@ -7,6 +7,7 @@ import usersRoutes from "./modules/users/users.routes.js";
 import leadsRoutes from "./modules/leads/leads.routes.js";
 import cardsRoutes from "./modules/cards/cards.routes.js";
 import notesRoutes from "./modules/notes/notes.routes.js";
+import activitiesRoutes from "./modules/activities/activities.routes.js";
 import { env } from "./config/env.js";
 import { checkDatabaseConnection, initializeDatabase } from "./config/db.js";
 import { authenticate } from "./middlewares/auth.middleware.js";
@@ -56,6 +57,7 @@ app.use("/api/users", usersRoutes);
 app.use("/api/leads", leadsRoutes);
 app.use("/api/cards", cardsRoutes);
 app.use("/api/notes", notesRoutes);
+app.use("/api/activities", activitiesRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

@@ -88,3 +88,12 @@ export const cleanName = (val) => {
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(" ");
 };
+
+/**
+ * Basic text cleaner to handle empty strings/whitespace.
+ */
+export const cleanText = (val) => {
+  if (!val) return null;
+  const t = String(val).trim();
+  return t.length ? t : null;
+};
