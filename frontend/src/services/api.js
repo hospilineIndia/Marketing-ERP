@@ -92,4 +92,16 @@ export const searchLeads = async (query) => {
   return response.data;
 };
 
+export const getLeadByPhone = async (phone) => {
+  const response = await api.get("/leads/by-phone", {
+    params: { phone },
+  });
+  return response.data;
+};
+
+export const createActivity = async (data) => {
+  const response = await api.post("/activities", data);
+  return response.data;
+};
+
 export default api;

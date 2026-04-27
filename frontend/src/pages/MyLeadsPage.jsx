@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowUpRight, Clock3, Sparkles, Phone, Building2, AlertCircle, Search, X } from "lucide-react";
+import { ArrowUpRight, Clock3, Sparkles, Phone, Building2, AlertCircle, Search, X, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -200,8 +200,9 @@ export function MyLeadsPage() {
                     {highlightText(lead.company || "Individual", query)}
                   </CardDescription>
                 </div>
-                <Badge variant="outline" className="bg-background font-bold text-[10px] uppercase tracking-tighter">
-                  Active
+                <Badge variant="outline" className="bg-background font-bold text-[10px] uppercase tracking-tighter flex items-center gap-1">
+                  {lead.last_activity_type === 'call' ? <Phone className="h-3 w-3" /> : <MapPin className="h-3 w-3" />}
+                  {lead.last_activity_type === 'call' ? 'Call' : 'Field'}
                 </Badge>
               </div>
             </CardHeader>
