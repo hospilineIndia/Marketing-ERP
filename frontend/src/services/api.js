@@ -1,7 +1,15 @@
 import axios from "axios";
 
+const getBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  if (window.location.hostname !== "localhost") {
+    return `http://${window.location.hostname}:4000/api`;
+  }
+  return "http://localhost:4000/api";
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:4000/api",
+  baseURL: getBaseUrl(),
   headers: {
     "Content-Type": "application/json",
     "Cache-Control": "no-cache",

@@ -25,7 +25,7 @@ initializeDatabase().catch((error) => {
 
 app.use(
   cors({
-    origin: env.frontendUrl,
+    origin: true,
     credentials: true,
   }),
 );
