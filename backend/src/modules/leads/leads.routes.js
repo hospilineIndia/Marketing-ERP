@@ -261,8 +261,8 @@ router.post("/", requireAuth, requireKnownUser, async (req, res, next) => {
     const newLead = leadResult.rows[0];
 
     const insertActivityQuery = `
-      INSERT INTO activities (lead_id, activity_type, notes, created_by)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO activities (lead_id, activity_type, notes, created_by, latitude, longitude)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *;
     `;
 
@@ -270,7 +270,9 @@ router.post("/", requireAuth, requireKnownUser, async (req, res, next) => {
       newLead.id,
       activity_type,
       cleanText(notes),
-      req.user.id
+      req.user.id,
+      activity_type === 'field' ? parsedLatitude : null,
+      activity_type === 'field' ? parsedLongitude : null
     ]);
 
     await client.query('COMMIT');
@@ -325,7 +327,7 @@ router.get("/:id/activities", requireAuth, requireKnownUser, async (req, res, ne
     }
 
     const query = `
-      SELECT id, activity_type, notes, call_outcome, duration_seconds, follow_up_required, created_at
+      SELECT id, activity_type, notes, call_outcome, duration_seconds, follow_up_required, latitude, longitude, created_at
       FROM activities
       WHERE lead_id = $1
       ORDER BY created_at DESC

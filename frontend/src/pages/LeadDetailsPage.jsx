@@ -227,8 +227,8 @@ export function LeadDetailsPage() {
                               <p className="text-sm text-muted-foreground italic">No notes provided.</p>
                             )}
 
-                            {(activity.duration_seconds || activity.follow_up_required) && (
-                              <div className="flex gap-3 pt-3 border-t border-dashed border-muted/60 mt-3">
+                            {(activity.duration_seconds || activity.follow_up_required || (activity.latitude && activity.longitude)) && (
+                              <div className="flex flex-wrap gap-3 pt-3 border-t border-dashed border-muted/60 mt-3">
                                 {activity.duration_seconds > 0 && (
                                   <span className="text-xs font-semibold text-muted-foreground bg-muted/40 px-2.5 py-1 rounded-md">
                                     ⏱ {Math.floor(activity.duration_seconds / 60)}m {activity.duration_seconds % 60}s
@@ -239,6 +239,20 @@ export function LeadDetailsPage() {
                                     <AlertCircle className="h-3.5 w-3.5" />
                                     Flagged for Follow-up
                                   </span>
+                                )}
+                                {activity.latitude && activity.longitude && (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="h-6 text-xs px-2.5 py-0 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 hover:text-blue-800 rounded-md shadow-none flex items-center gap-1.5"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      window.open(`https://www.google.com/maps?q=${activity.latitude},${activity.longitude}`, '_blank');
+                                    }}
+                                  >
+                                    <MapPin className="h-3 w-3" />
+                                    View Location
+                                  </Button>
                                 )}
                               </div>
                             )}

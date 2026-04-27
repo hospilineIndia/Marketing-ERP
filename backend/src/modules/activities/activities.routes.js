@@ -9,7 +9,7 @@ router.post("/", requireAuth, requireKnownUser, async (req, res, next) => {
   const client = await db.connect();
 
   try {
-    const { lead_id, activity_type, notes, call_outcome, duration_seconds, follow_up_required } = req.body;
+    const { lead_id, activity_type, notes, call_outcome, duration_seconds, follow_up_required, latitude, longitude } = req.body;
 
     if (!lead_id || !activity_type) {
       return res.status(400).json({ error: "lead_id and activity_type are required." });
@@ -36,8 +36,8 @@ router.post("/", requireAuth, requireKnownUser, async (req, res, next) => {
     }
 
     const insertActivityQuery = `
-      INSERT INTO activities (lead_id, activity_type, notes, call_outcome, duration_seconds, follow_up_required, created_by)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO activities (lead_id, activity_type, notes, call_outcome, duration_seconds, follow_up_required, created_by, latitude, longitude)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *;
     `;
     
@@ -48,7 +48,9 @@ router.post("/", requireAuth, requireKnownUser, async (req, res, next) => {
       cleanText(call_outcome),
       duration_seconds !== undefined && duration_seconds !== null ? Number(duration_seconds) : null,
       Boolean(follow_up_required),
-      req.user.id
+      req.user.id,
+      activity_type === 'field' && latitude ? Number(latitude) : null,
+      activity_type === 'field' && longitude ? Number(longitude) : null
     ];
 
     const activityResult = await client.query(insertActivityQuery, activityValues);

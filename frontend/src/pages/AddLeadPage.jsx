@@ -131,25 +131,8 @@ export function AddLeadPage() {
     setFormData((prev) => ({ ...prev, activity_type: type, call_outcome: "" }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (loading) return;
-
-    if (phone.length < 10) {
-      setError("Enter valid phone number");
-      return;
-    }
-
-    if (formData.activity_type === "call" && !formData.call_outcome) {
-      setError("Call outcome is required.");
-      return;
-    }
-
+  const submitForm = async (latitude = null, longitude = null) => {
     try {
-      setLoading(true);
-      setError(null);
-      setSuccess(false);
-
       if (isExistingLead) {
         await createActivity({
           lead_id: existingLead.id,
@@ -160,6 +143,8 @@ export function AddLeadPage() {
             ? Number(formData.duration_seconds) 
             : undefined,
           follow_up_required: formData.follow_up_required,
+          latitude,
+          longitude
         });
       } else {
         if (!formData.name) {
@@ -174,6 +159,8 @@ export function AddLeadPage() {
           company: formData.company,
           activity_type: formData.activity_type,
           notes: formData.notes,
+          latitude,
+          longitude
         });
       }
       
@@ -197,8 +184,41 @@ export function AddLeadPage() {
     } catch (err) {
       console.error("Submission failed:", err);
       setError(err.response?.data?.error || "Failed to save. Please try again.");
-    } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (loading) return;
+
+    if (phone.length < 10) {
+      setError("Enter valid phone number");
+      return;
+    }
+
+    if (formData.activity_type === "call" && !formData.call_outcome) {
+      setError("Call outcome is required.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setSuccess(false);
+
+    if (formData.activity_type === 'field' && "geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          submitForm(position.coords.latitude, position.coords.longitude);
+        },
+        (err) => {
+          console.warn("Location not captured", err);
+          submitForm(null, null);
+        },
+        { timeout: 5000 }
+      );
+    } else {
+      submitForm(null, null);
     }
   };
 

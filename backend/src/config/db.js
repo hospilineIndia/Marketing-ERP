@@ -182,6 +182,18 @@ export const initializeDatabase = async () => {
     console.warn("Could not setup Activity Tracking schema:", error.message);
   }
 
+  // Migration: Geo Tracking for Field Activities
+  try {
+    await db.query(`
+      ALTER TABLE activities 
+      ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION,
+      ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
+    `);
+    console.info("Geo Tracking schema verified.");
+  } catch (error) {
+    console.warn("Could not setup Geo Tracking schema:", error.message);
+  }
+
   schemaReady = true;
 };
 
