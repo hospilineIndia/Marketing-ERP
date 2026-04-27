@@ -33,9 +33,14 @@ export function AddLeadPage() {
   const latestPhoneRef = useRef("");
 
   const handlePhonePrefill = async (phoneVal) => {
+    const currentPhone = phoneVal;
+    
     try {
       setCheckingPhone(true);
       const res = await getLeadByPhone(phoneVal);
+
+      // Prevent stale response override
+      if (latestPhoneRef.current !== currentPhone) return;
 
       if (res.exists) {
         setIsExistingLead(true);
@@ -50,7 +55,9 @@ export function AddLeadPage() {
     } catch (err) {
       console.error("Prefill lookup failed", err);
     } finally {
-      setCheckingPhone(false);
+      if (latestPhoneRef.current === currentPhone) {
+        setCheckingPhone(false);
+      }
     }
   };
 
