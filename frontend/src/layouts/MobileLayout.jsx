@@ -1,7 +1,10 @@
 import { Outlet } from "react-router-dom";
 import { BottomNav } from "@/components/common/BottomNav";
+import { useAuth } from "@/context/AuthContext";
 
 export function MobileLayout() {
+  const { isAuthenticated } = useAuth();
+
   return (
     <div className="min-h-screen bg-muted/30 overflow-x-hidden">
       <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pb-24 pt-5">
@@ -17,7 +20,7 @@ export function MobileLayout() {
           <Outlet />
         </main>
       </div>
-      <BottomNav />
+      {isAuthenticated && <BottomNav />}
     </div>
   );
 }
