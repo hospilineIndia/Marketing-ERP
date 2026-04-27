@@ -101,7 +101,7 @@ export function LeadDetailsPage() {
     );
   }
 
-  const displayedActivities = activities.slice(0, 20);
+  const displayedActivities = activities;
   const hasMore = activities.length > 20;
 
   const groupedActivities = displayedActivities.reduce((acc, activity) => {

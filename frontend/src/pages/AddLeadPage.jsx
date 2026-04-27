@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Loader2, Phone, MapPin, Search, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { createLead, createActivity, getLeadByPhone } from "@/services/api";
 
 export function AddLeadPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [checkingPhone, setCheckingPhone] = useState(false);
   const [error, setError] = useState(null);
@@ -30,6 +31,42 @@ export function AddLeadPage() {
 
   const debounceTimeout = useRef(null);
   const latestPhoneRef = useRef("");
+
+  const handlePhonePrefill = async (phoneVal) => {
+    try {
+      setCheckingPhone(true);
+      const res = await getLeadByPhone(phoneVal);
+
+      if (res.exists) {
+        setIsExistingLead(true);
+        setExistingLead(res.lead);
+
+        setFormData(prev => ({
+          ...prev,
+          name: "",
+          company: ""
+        }));
+      }
+    } catch (err) {
+      console.error("Prefill lookup failed", err);
+    } finally {
+      setCheckingPhone(false);
+    }
+  };
+
+  useEffect(() => {
+    if (location.state?.phone) {
+      const phoneVal = location.state.phone;
+
+      setPhone(phoneVal);
+      latestPhoneRef.current = phoneVal;
+
+      handlePhonePrefill(phoneVal);
+      
+      // Clear location state so refresh doesn't trigger it again
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   // Phone input handler with debounced lookup
   const handlePhoneChange = (e) => {
