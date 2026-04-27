@@ -1,10 +1,10 @@
 import { Navigate } from "react-router-dom";
-import { ACCESS_TOKEN_KEY } from "@/services/api";
+import { useAuth } from "@/context/AuthContext";
 
 const PublicRoute = ({ children }) => {
-  const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+  const { isAuthenticated } = useAuth();
 
-  if (token) {
+  if (isAuthenticated) {
     return <Navigate to="/my-leads" replace />;
   }
 

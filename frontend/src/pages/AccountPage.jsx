@@ -3,20 +3,12 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import api, { handleLogout } from "@/services/api";
 
 export function AccountPage() {
   const { user, logout } = useAuth();
 
-  const onLogout = async () => {
-    try {
-      await api.post("/auth/logout");
-    } catch (err) {
-      console.error("Logout API failed, forcing local logout", err);
-    } finally {
-      logout(); // Clear context
-      handleLogout(); // Clear storage & redirect
-    }
+  const onLogout = () => {
+    logout();
   };
 
   return (
