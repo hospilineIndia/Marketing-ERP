@@ -7,8 +7,12 @@ export function MobileLayout() {
 
   return (
     <div className="min-h-screen bg-muted/30 overflow-x-hidden">
-      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pb-24 pt-5">
-        <header className="mb-5">
+      <div 
+        className={`mx-auto flex min-h-screen w-full max-w-md flex-col px-4 ${
+          isAuthenticated ? "pb-24 pt-5" : "py-10 justify-center"
+        }`}
+      >
+        <header className={`mb-5 ${!isAuthenticated ? "text-center" : ""}`}>
           <p className="text-sm font-medium uppercase tracking-[0.24em] text-muted-foreground">
             Marketing ERP
           </p>
@@ -16,7 +20,7 @@ export function MobileLayout() {
             Field App
           </h1>
         </header>
-        <main className="flex-1">
+        <main className={isAuthenticated ? "flex-1" : "flex-none"}>
           <Outlet />
         </main>
       </div>
