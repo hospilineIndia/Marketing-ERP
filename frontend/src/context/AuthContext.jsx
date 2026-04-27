@@ -1,11 +1,8 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
 import api, { setupInterceptors } from "@/services/api";
+import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, USER_STORAGE_KEY } from "@/config/constants";
 
 const AuthContext = createContext(null);
-
-const ACCESS_TOKEN_KEY = "marketing-erp-access-token";
-const REFRESH_TOKEN_KEY = "marketing-erp-refresh-token";
-const USER_STORAGE_KEY = "marketing-erp-user";
 
 export function AuthProvider({ children }) {
   const [accessToken, setAccessToken] = useState(() => localStorage.getItem(ACCESS_TOKEN_KEY));
@@ -19,51 +16,76 @@ export function AuthProvider({ children }) {
     }
   });
 
-  const logout = () => {
-    // Attempt backend logout (non-blocking)
-    api.post("/auth/logout").catch((err) => {
-      console.error("API logout failed:", err);
-    });
+  const authStateRef = useRef({ accessToken, refreshToken });
+  const isLoggingOut = useRef(false);
+
+  useEffect(() => {
+    authStateRef.current = { accessToken, refreshToken };
+  }, [accessToken, refreshToken]);
+
+  const logout = useCallback(() => {
+    if (isLoggingOut.current) return;
+    isLoggingOut.current = true;
 
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(USER_STORAGE_KEY);
+    
     setAccessToken(null);
     setRefreshToken(null);
     setUser(null);
+    
     window.location.href = "/login";
-  };
+    
+    // Non-blocking API call post-redirect
+    api.post("/auth/logout").catch((err) => {
+      console.error("API logout failed:", err);
+    });
+  }, []);
 
-  const handleUpdateAccessToken = (newToken) => {
+  const handleUpdateAccessToken = useCallback((newToken) => {
     localStorage.setItem(ACCESS_TOKEN_KEY, newToken);
     setAccessToken(newToken);
-  };
+  }, []);
 
-  // Setup API interceptor callbacks
-  setupInterceptors(
-    () => accessToken,
-    () => refreshToken,
-    handleUpdateAccessToken,
-    logout
-  );
-
+  // Setup interceptors exactly once per lifecycle to prevent memory leaks
   useEffect(() => {
-    if (accessToken) {
-      try {
-        const payload = JSON.parse(atob(accessToken.split('.')[1]));
-        if (payload.exp * 1000 < Date.now()) {
-          logout();
-        }
-      } catch (err) {
+    setupInterceptors(
+      () => authStateRef.current.accessToken,
+      () => authStateRef.current.refreshToken,
+      handleUpdateAccessToken,
+      logout
+    );
+  }, [handleUpdateAccessToken, logout]);
+
+  // Hardened Auth Hydration on App Load
+  useEffect(() => {
+    const localToken = localStorage.getItem(ACCESS_TOKEN_KEY);
+    const localUser = localStorage.getItem(USER_STORAGE_KEY);
+
+    if (!localToken || !localUser) {
+      if (localToken || localUser) {
+        logout(); // Clear partially invalid session
+      }
+      return;
+    }
+
+    try {
+      const payload = JSON.parse(atob(localToken.split('.')[1]));
+      if (payload.exp * 1000 < Date.now()) {
         logout();
       }
+    } catch (err) {
+      logout();
     }
-  }, [accessToken]);
+  }, [logout]);
 
   const login = ({ accessToken: newAccess, refreshToken: newRefresh, user: nextUser }) => {
+    isLoggingOut.current = false;
     localStorage.setItem(ACCESS_TOKEN_KEY, newAccess);
     localStorage.setItem(REFRESH_TOKEN_KEY, newRefresh);
     localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(nextUser));
+    
     setAccessToken(newAccess);
     setRefreshToken(newRefresh);
     setUser(nextUser);
