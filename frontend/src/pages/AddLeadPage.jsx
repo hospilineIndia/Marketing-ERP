@@ -12,6 +12,7 @@ export function AddLeadPage() {
   const [loading, setLoading] = useState(false);
   const [checkingPhone, setCheckingPhone] = useState(false);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
 
   const [phone, setPhone] = useState("");
   const [isExistingLead, setIsExistingLead] = useState(false);
@@ -28,16 +29,19 @@ export function AddLeadPage() {
   });
 
   const debounceTimeout = useRef(null);
+  const latestPhoneRef = useRef("");
 
   // Phone input handler with debounced lookup
   const handlePhoneChange = (e) => {
     const val = e.target.value.replace(/[^0-9]/g, "");
     setPhone(val);
+    latestPhoneRef.current = val;
     
     // Reset existing lead state
     setIsExistingLead(false);
     setExistingLead(null);
     setError(null);
+    setSuccess(false);
 
     if (debounceTimeout.current) {
       clearTimeout(debounceTimeout.current);
@@ -46,16 +50,26 @@ export function AddLeadPage() {
     if (val.length >= 10) {
       setCheckingPhone(true);
       debounceTimeout.current = setTimeout(async () => {
+        if (latestPhoneRef.current !== val) return;
         try {
           const res = await getLeadByPhone(val);
+          if (latestPhoneRef.current !== val) return;
+          
           if (res.exists) {
             setIsExistingLead(true);
             setExistingLead(res.lead);
+            setFormData(prev => ({
+              ...prev,
+              name: "",
+              company: ""
+            }));
           }
         } catch (err) {
           console.error("Phone lookup failed", err);
         } finally {
-          setCheckingPhone(false);
+          if (latestPhoneRef.current === val) {
+            setCheckingPhone(false);
+          }
         }
       }, 500);
     }
@@ -75,12 +89,14 @@ export function AddLeadPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!phone) {
-      setError("Phone is required.");
+    if (loading) return;
+
+    if (phone.length < 10) {
+      setError("Enter valid phone number");
       return;
     }
 
-    if (formData.activity_type === "call" && isExistingLead && !formData.call_outcome) {
+    if (formData.activity_type === "call" && !formData.call_outcome) {
       setError("Call outcome is required.");
       return;
     }
@@ -88,6 +104,7 @@ export function AddLeadPage() {
     try {
       setLoading(true);
       setError(null);
+      setSuccess(false);
 
       if (isExistingLead) {
         await createActivity({
@@ -95,7 +112,9 @@ export function AddLeadPage() {
           activity_type: formData.activity_type,
           notes: formData.notes,
           call_outcome: formData.activity_type === "call" ? formData.call_outcome : undefined,
-          duration_seconds: formData.activity_type === "call" ? formData.duration_seconds : undefined,
+          duration_seconds: formData.activity_type === "call" && formData.duration_seconds 
+            ? Number(formData.duration_seconds) 
+            : undefined,
           follow_up_required: formData.follow_up_required,
         });
       } else {
@@ -113,7 +132,24 @@ export function AddLeadPage() {
           notes: formData.notes,
         });
       }
-      navigate("/my-leads");
+      
+      setSuccess(true);
+      setPhone("");
+      setFormData({
+        name: "",
+        company: "",
+        activity_type: "field",
+        notes: "",
+        call_outcome: "",
+        duration_seconds: "",
+        follow_up_required: false,
+      });
+      setIsExistingLead(false);
+      setExistingLead(null);
+      
+      setTimeout(() => {
+        navigate("/my-leads");
+      }, 1000);
     } catch (err) {
       console.error("Submission failed:", err);
       setError(err.response?.data?.error || "Failed to save. Please try again.");
@@ -143,6 +179,13 @@ export function AddLeadPage() {
             {error && (
               <div className="rounded-xl bg-destructive/10 p-4 text-sm font-semibold text-destructive">
                 {error}
+              </div>
+            )}
+            
+            {success && (
+              <div className="rounded-xl bg-emerald-500/10 p-4 text-sm font-semibold text-emerald-600 flex items-center gap-2 animate-in fade-in">
+                <CheckCircle2 className="h-5 w-5" />
+                Saved successfully
               </div>
             )}
 

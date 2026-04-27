@@ -200,7 +200,14 @@ export function MyLeadsPage() {
                     {highlightText(lead.company || "Individual", query)}
                   </CardDescription>
                 </div>
-                <Badge variant="outline" className="bg-background font-bold text-[10px] uppercase tracking-tighter flex items-center gap-1">
+                <Badge 
+                  variant="outline" 
+                  className={`font-bold text-[10px] uppercase tracking-tighter flex items-center gap-1 ${
+                    lead.last_activity_type === 'call' 
+                      ? 'text-emerald-700 bg-emerald-50 border-emerald-200' 
+                      : 'text-blue-700 bg-blue-50 border-blue-200'
+                  }`}
+                >
                   {lead.last_activity_type === 'call' ? <Phone className="h-3 w-3" /> : <MapPin className="h-3 w-3" />}
                   {lead.last_activity_type === 'call' ? 'Call' : 'Field'}
                 </Badge>
