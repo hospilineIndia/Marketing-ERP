@@ -3,6 +3,7 @@ import { MobileLayout } from "@/layouts/MobileLayout";
 import { AddLeadPage } from "@/pages/AddLeadPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { MyLeadsPage } from "@/pages/MyLeadsPage";
+import { LeadDetailsPage } from "@/pages/LeadDetailsPage";
 import { SignupPage } from "@/pages/SignupPage";
 import { AccountPage } from "@/pages/AccountPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -55,6 +56,15 @@ function App() {
           element={
             <ProtectedRoute>
               <MyLeadsPage />
+            </ProtectedRoute>
+          } 
+        />
+
+        <Route 
+          path="/my-leads/:id" 
+          element={
+            <ProtectedRoute>
+              <LeadDetailsPage />
             </ProtectedRoute>
           } 
         />

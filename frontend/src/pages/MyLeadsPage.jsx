@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ArrowUpRight, Clock3, Sparkles, Phone, Building2, AlertCircle, Search, X, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { getLeads, searchLeads } from "@/services/api";
 
 export function MyLeadsPage() {
+  const navigate = useNavigate();
   const [leads, setLeads] = useState([]);
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -188,7 +190,11 @@ export function MyLeadsPage() {
         )}
 
         {leads.map((lead) => (
-          <Card key={lead.id} className="group transition-all hover:border-primary/50 hover:shadow-md border-muted/30">
+          <Card 
+            key={lead.id} 
+            className="group transition-all hover:border-primary/50 hover:shadow-md border-muted/30 cursor-pointer"
+            onClick={() => navigate(`/my-leads/${lead.id}`)}
+          >
             <CardHeader className="space-y-3 pb-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">

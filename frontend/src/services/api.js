@@ -99,6 +99,16 @@ export const getLeadByPhone = async (phone) => {
   return response.data;
 };
 
+export const getLeadDetails = async (id) => {
+  const response = await api.get(`/leads/${id}`);
+  return response.data;
+};
+
+export const getLeadActivities = async (id) => {
+  const response = await api.get(`/leads/${id}/activities`);
+  return response.data;
+};
+
 export const createActivity = async (data) => {
   const response = await api.post("/activities", data);
   return response.data;

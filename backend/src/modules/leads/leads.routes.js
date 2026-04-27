@@ -290,6 +290,54 @@ router.post("/", requireAuth, requireKnownUser, async (req, res, next) => {
   }
 });
 
+router.get("/:id", requireAuth, requireKnownUser, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const query = `
+      SELECT id, name, phone, email, company, created_at, last_activity_at, last_activity_type
+      FROM leads
+      WHERE id = $1 AND created_by = $2
+    `;
+    const result = await db.query(query, [id, req.user.id]);
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Lead not found" });
+    }
+
+    res.json({ data: result.rows[0] });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/:id/activities", requireAuth, requireKnownUser, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    
+    // First ensure the lead belongs to the user
+    const leadCheck = await db.query(
+      "SELECT id FROM leads WHERE id = $1 AND created_by = $2",
+      [id, req.user.id]
+    );
+
+    if (leadCheck.rowCount === 0) {
+      return res.status(404).json({ error: "Lead not found or unauthorized" });
+    }
+
+    const query = `
+      SELECT id, activity_type, notes, call_outcome, duration_seconds, follow_up_required, created_at
+      FROM activities
+      WHERE lead_id = $1
+      ORDER BY created_at DESC
+    `;
+    const result = await db.query(query, [id]);
+
+    res.json({ data: result.rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.patch("/:id", requireAuth, requireKnownUser, async (req, res, next) => {
   try {
     const { id } = req.params;
