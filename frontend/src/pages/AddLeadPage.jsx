@@ -207,22 +207,33 @@ export function AddLeadPage() {
     setSuccess(false);
 
     try {
-      if (formData.activity_type === 'field' && "geolocation" in navigator) {
+      if (formData.activity_type === 'field') {
+        if (!("geolocation" in navigator)) {
+          setError("Location tracking is not supported by this browser. Please use a modern browser.");
+          setLoading(false);
+          return;
+        }
+
         navigator.geolocation.getCurrentPosition(
           (position) => {
             submitForm(position.coords.latitude, position.coords.longitude);
           },
           (err) => {
-            console.warn("Location not captured", err);
-            submitForm(null, null);
+            let msg = "Could not capture location.";
+            if (err.code === 1) msg = "Location permission denied. Please enable location to log field visits.";
+            else if (err.code === 3) msg = "Location timeout. Please ensure you have a GPS signal and try again.";
+            
+            setError(msg);
+            setLoading(false);
           },
-          { timeout: 5000 }
+          { timeout: 10000, enableHighAccuracy: true, maximumAge: 0 }
         );
       } else {
         submitForm(null, null);
       }
     } catch {
-      submitForm(null, null);
+      setError("An unexpected error occurred while capturing location.");
+      setLoading(false);
     }
   };
 
