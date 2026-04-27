@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
 import api, { setupInterceptors } from "@/services/api";
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, USER_STORAGE_KEY } from "@/config/constants";
+import { isTokenExpired } from "@/utils/jwt";
 
 const AuthContext = createContext(null);
 
@@ -27,6 +28,16 @@ export function AuthProvider({ children }) {
     if (isLoggingOut.current) return;
     isLoggingOut.current = true;
 
+    // Capture refresh token for API call
+    const currentRefreshToken = authStateRef.current.refreshToken;
+
+    // Non-blocking API call FIRST
+    if (currentRefreshToken) {
+      api.post("/auth/logout", { refreshToken: currentRefreshToken }).catch((err) => {
+        console.error("API logout failed:", err);
+      });
+    }
+
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(USER_STORAGE_KEY);
@@ -36,11 +47,6 @@ export function AuthProvider({ children }) {
     setUser(null);
     
     window.location.href = "/login";
-    
-    // Non-blocking API call post-redirect
-    api.post("/auth/logout").catch((err) => {
-      console.error("API logout failed:", err);
-    });
   }, []);
 
   const handleUpdateAccessToken = useCallback((newToken) => {
@@ -70,12 +76,7 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    try {
-      const payload = JSON.parse(atob(localToken.split('.')[1]));
-      if (payload.exp * 1000 < Date.now()) {
-        logout();
-      }
-    } catch (err) {
+    if (isTokenExpired(localToken)) {
       logout();
     }
   }, [logout]);

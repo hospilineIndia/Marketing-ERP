@@ -1,27 +1,16 @@
 import { Navigate } from "react-router-dom";
-import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { isTokenExpired } from "@/utils/jwt";
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, accessToken, logout } = useAuth();
-  const [isExpired, setIsExpired] = useState(false);
 
-  useEffect(() => {
-    if (accessToken) {
-      try {
-        const payload = JSON.parse(atob(accessToken.split('.')[1]));
-        if (payload.exp * 1000 < Date.now()) {
-          setIsExpired(true);
-          logout();
-        }
-      } catch (err) {
-        setIsExpired(true);
-        logout();
-      }
-    }
-  }, [accessToken, logout]);
+  if (!isAuthenticated || !accessToken) {
+    return <Navigate to="/login" replace />;
+  }
 
-  if (!isAuthenticated || !accessToken || isExpired) {
+  if (isTokenExpired(accessToken)) {
+    logout();
     return <Navigate to="/login" replace />;
   }
 
