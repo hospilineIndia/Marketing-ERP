@@ -109,11 +109,11 @@ export function LeadDetailsPage() {
               const isCall = activity.activity_type === "call";
               
               return (
-                <div key={activity.id} className="relative pl-6 animate-in fade-in slide-in-from-bottom-2" style={{ animationDelay: \`\${index * 50}ms\` }}>
+                <div key={activity.id} className="relative pl-6 animate-in fade-in slide-in-from-bottom-2" style={{ animationDelay: `${index * 50}ms` }}>
                   {/* Timeline Node */}
-                  <div className={\`absolute -left-[17px] top-1 flex h-8 w-8 items-center justify-center rounded-full border-4 border-background shadow-sm \${
+                  <div className={`absolute -left-[17px] top-1 flex h-8 w-8 items-center justify-center rounded-full border-4 border-background shadow-sm ${
                     isCall ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'
-                  }\`}>
+                  }`}>
                     {isCall ? <Phone className="h-3.5 w-3.5" /> : <MapPin className="h-3.5 w-3.5" />}
                   </div>
 
@@ -121,9 +121,9 @@ export function LeadDetailsPage() {
                   <Card className="border-none shadow-sm hover:shadow-md transition-shadow bg-card">
                     <CardHeader className="p-4 pb-2">
                       <div className="flex items-center justify-between">
-                        <Badge variant="outline" className={\`font-bold text-[10px] uppercase tracking-tighter \${
+                        <Badge variant="outline" className={`font-bold text-[10px] uppercase tracking-tighter ${
                           isCall ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-blue-700 bg-blue-50 border-blue-200'
-                        }\`}>
+                        }`}>
                           {isCall ? 'Phone Call' : 'Field Visit'}
                         </Badge>
                         <span className="text-xs font-bold text-muted-foreground">
