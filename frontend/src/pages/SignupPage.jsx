@@ -7,22 +7,28 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/services/api";
 
-export function LoginPage() {
+export function SignupPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleLogin = async (event) => {
+  const handleSignup = async (event) => {
     event.preventDefault();
     setLoading(false);
     setError("");
 
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+
     try {
       setLoading(true);
-      const res = await api.post("/auth/login", { email, password });
+      const res = await api.post("/auth/register", { name, email, password });
       
       const { accessToken, refreshToken, user } = res.data.data;
 
@@ -34,8 +40,8 @@ export function LoginPage() {
 
       navigate("/my-leads");
     } catch (err) {
-      console.error("Login failed:", err);
-      setError(err.response?.data?.error || "Invalid email or password");
+      console.error("Signup failed:", err);
+      setError(err.response?.data?.error || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -44,20 +50,28 @@ export function LoginPage() {
   return (
     <div className="space-y-4">
       <Badge variant="secondary" className="rounded-full px-3 py-1">
-        Login
+        Sign Up
       </Badge>
       <Card>
         <CardHeader>
-          <CardTitle>Welcome back</CardTitle>
+          <CardTitle>Create an account</CardTitle>
           <CardDescription>
-            Sign in to capture leads, upload cards, and add notes from the field.
+            Join the Marketing ERP platform to start tracking your leads from the field.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleSignup} className="space-y-4">
             {error && (
               <p className="text-sm font-medium text-destructive">{error}</p>
             )}
+            <Input 
+              type="text" 
+              placeholder="Full Name" 
+              className="h-12 rounded-2xl"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
             <Input 
               type="email" 
               placeholder="Work email" 
@@ -68,20 +82,21 @@ export function LoginPage() {
             />
             <Input 
               type="password" 
-              placeholder="Password" 
+              placeholder="Password (min 6 chars)" 
               className="h-12 rounded-2xl"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
             />
             <Button type="submit" className="h-12 w-full rounded-2xl" disabled={loading}>
-              {loading ? "Authenticating..." : "Sign In"}
+              {loading ? "Creating account..." : "Sign Up"}
             </Button>
           </form>
+
           <div className="mt-6 text-center text-sm">
-            <span className="text-muted-foreground">Don't have an account? </span>
-            <Link to="/signup" className="font-semibold text-primary hover:underline">
-              Sign up
+            <span className="text-muted-foreground">Already have an account? </span>
+            <Link to="/login" className="font-semibold text-primary hover:underline">
+              Log in
             </Link>
           </div>
         </CardContent>

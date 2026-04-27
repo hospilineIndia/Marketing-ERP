@@ -18,6 +18,60 @@ import {
 
 const router = Router();
 
+router.post("/register", async (req, res, next) => {
+  try {
+    const { name, email, password } = req.body;
+
+    if (isBlank(name) || isBlank(email) || isBlank(password)) {
+      throw badRequest("Name, email, and password are required.");
+    }
+
+    // Check if user exists
+    const existingUser = await db.query("SELECT id FROM users WHERE email = $1", [String(email).trim().toLowerCase()]);
+    if (existingUser.rowCount > 0) {
+      return res.status(409).json({ error: "Email already in use." });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Insert user
+    const result = await db.query(
+      `
+        INSERT INTO users (name, email, password, role)
+        VALUES ($1, $2, $3, 'field')
+        RETURNING id, name, email, role, token_version
+      `,
+      [String(name).trim(), String(email).trim().toLowerCase(), hashedPassword]
+    );
+
+    const user = result.rows[0];
+
+    // Generate Tokens
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+
+    // Hash and store Refresh Token
+    const hashedRefresh = await hashToken(refreshToken);
+    await db.query("UPDATE users SET refresh_token = $1 WHERE id = $2", [hashedRefresh, user.id]);
+
+    res.status(201).json({
+      data: {
+        accessToken,
+        refreshToken,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.post("/login", async (req, res, next) => {
   try {
     const { email, password } = req.body;

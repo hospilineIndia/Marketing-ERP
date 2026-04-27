@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { to: "/my-leads", label: "My Leads", icon: LayoutDashboard },
   { to: "/add-lead", label: "Add Lead", icon: PlusCircle },
-  { to: "/login", label: "Account", icon: UserCircle2 },
+  { to: "/account", label: "Account", icon: UserCircle2 },
 ];
 
 export function BottomNav() {
