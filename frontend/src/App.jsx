@@ -3,15 +3,41 @@ import { MobileLayout } from "@/layouts/MobileLayout";
 import { AddLeadPage } from "@/pages/AddLeadPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { MyLeadsPage } from "@/pages/MyLeadsPage";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import PublicRoute from "@/components/PublicRoute";
 
 function App() {
   return (
     <Routes>
       <Route element={<MobileLayout />}>
         <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/add-lead" element={<AddLeadPage />} />
-        <Route path="/my-leads" element={<MyLeadsPage />} />
+        
+        <Route 
+          path="/login" 
+          element={
+            <PublicRoute>
+              <LoginPage />
+            </PublicRoute>
+          } 
+        />
+        
+        <Route 
+          path="/add-lead" 
+          element={
+            <ProtectedRoute>
+              <AddLeadPage />
+            </ProtectedRoute>
+          } 
+        />
+        
+        <Route 
+          path="/my-leads" 
+          element={
+            <ProtectedRoute>
+              <MyLeadsPage />
+            </ProtectedRoute>
+          } 
+        />
       </Route>
     </Routes>
   );
