@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Camera, MapPin, Loader2, User, Phone, Mail, Building2 } from "lucide-react";
+import { Loader2, User, Phone, Mail, Building2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -118,17 +118,7 @@ export function AddLeadPage() {
               </div>
             </div>
 
-            {/* Quick Actions (Placeholders) */}
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <Button type="button" variant="secondary" className="h-12 rounded-xl font-bold bg-secondary/50">
-                <Camera className="mr-2 h-4 w-4" />
-                Scan Card
-              </Button>
-              <Button type="button" variant="outline" className="h-12 rounded-xl font-bold border-muted-foreground/20">
-                <MapPin className="mr-2 h-4 w-4" />
-                Tag GPS
-              </Button>
-            </div>
+
 
             <Button 
               type="submit" 
