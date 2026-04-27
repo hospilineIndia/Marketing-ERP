@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { createLead, createActivity, getLeadByPhone } from "@/services/api";
 
 export function AddLeadPage() {
@@ -262,10 +261,10 @@ export function AddLeadPage() {
                 </>
               )}
 
-              <Textarea
+              <textarea
                 name="notes"
                 placeholder="Interaction notes (Optional)"
-                className="min-h-[100px] rounded-xl bg-muted/50 border-none focus-visible:ring-primary resize-none"
+                className="flex w-full min-h-[100px] rounded-xl bg-muted/50 border-none px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary resize-none"
                 value={formData.notes}
                 onChange={handleChange}
               />
