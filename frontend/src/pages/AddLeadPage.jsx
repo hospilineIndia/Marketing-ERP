@@ -236,7 +236,9 @@ export function AddLeadPage() {
 
     if (formData.follow_up_required && formData.due_date) {
       const due = new Date(formData.due_date);
-      if (due < new Date()) {
+      const now = new Date();
+      now.setSeconds(0, 0);
+      if (due < now) {
         setError("Due date must be in the future.");
         return;
       }
