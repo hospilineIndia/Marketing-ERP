@@ -31,6 +31,8 @@ export function AddLeadPage() {
     call_outcome: "",
     duration_seconds: "",
     follow_up_required: false,
+    due_date: "",
+    follow_up_notes: "",
   });
 
   const debounceTimeout = useRef(null);
@@ -154,6 +156,8 @@ export function AddLeadPage() {
             ? Number(formData.duration_seconds) 
             : undefined,
           follow_up_required: formData.follow_up_required,
+          due_date: formData.follow_up_required ? formData.due_date : undefined,
+          follow_up_notes: formData.follow_up_required ? formData.follow_up_notes : undefined,
           planned_location_text: planned || undefined,
           latitude,
           longitude
@@ -193,6 +197,8 @@ export function AddLeadPage() {
         call_outcome: "",
         duration_seconds: "",
         follow_up_required: false,
+        due_date: "",
+        follow_up_notes: "",
       });
       setIsExistingLead(false);
       setExistingLead(null);
@@ -218,6 +224,11 @@ export function AddLeadPage() {
 
     if (formData.activity_type === "call" && !formData.call_outcome) {
       setError("Call outcome is required.");
+      return;
+    }
+
+    if (formData.follow_up_required && !formData.due_date) {
+      setError("Due date is required when Follow-up is checked.");
       return;
     }
 
@@ -482,6 +493,31 @@ export function AddLeadPage() {
                 />
                 <span className="text-sm font-bold text-foreground">Follow-up Required</span>
               </label>
+
+              {formData.follow_up_required && (
+                <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-bold text-foreground pl-1">
+                      Due Date &amp; Time *
+                    </label>
+                    <input
+                      type="datetime-local"
+                      name="due_date"
+                      value={formData.due_date}
+                      onChange={(e) => { handleChange(e); if (error) setError(null); }}
+                      className="flex h-12 w-full rounded-xl border-none bg-muted/50 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      required
+                    />
+                  </div>
+                  <textarea
+                    name="follow_up_notes"
+                    placeholder="Follow-up notes (Optional)"
+                    className="flex w-full min-h-[80px] rounded-xl bg-muted/50 border-none px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary resize-none"
+                    value={formData.follow_up_notes}
+                    onChange={handleChange}
+                  />
+                </div>
+              )}
             </div>
 
             {/* 5. SUBMIT */}

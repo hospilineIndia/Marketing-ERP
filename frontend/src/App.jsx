@@ -6,6 +6,7 @@ import { MyLeadsPage } from "@/pages/MyLeadsPage";
 import { LeadDetailsPage } from "@/pages/LeadDetailsPage";
 import { SignupPage } from "@/pages/SignupPage";
 import { AccountPage } from "@/pages/AccountPage";
+import { FollowUpsPage } from "@/pages/FollowUpsPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import PublicRoute from "@/components/PublicRoute";
 
@@ -65,6 +66,15 @@ function App() {
           element={
             <ProtectedRoute>
               <LeadDetailsPage />
+            </ProtectedRoute>
+          } 
+        />
+
+        <Route 
+          path="/follow-ups" 
+          element={
+            <ProtectedRoute>
+              <FollowUpsPage />
             </ProtectedRoute>
           } 
         />

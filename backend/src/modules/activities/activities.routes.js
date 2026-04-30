@@ -9,7 +9,7 @@ router.post("/", requireAuth, requireKnownUser, async (req, res, next) => {
   const client = await db.connect();
 
   try {
-    const { lead_id, activity_type, notes, call_outcome, duration_seconds, follow_up_required, latitude, longitude, planned_location_text, planned_latitude, planned_longitude } = req.body;
+    const { lead_id, activity_type, notes, call_outcome, duration_seconds, follow_up_required, latitude, longitude, planned_location_text, planned_latitude, planned_longitude, due_date, follow_up_notes } = req.body;
 
     const safeNumber = (val) => {
       if (val === undefined || val === null || val === "") return null;
@@ -28,6 +28,8 @@ router.post("/", requireAuth, requireKnownUser, async (req, res, next) => {
     if (duration_seconds !== undefined && duration_seconds !== null && isNaN(Number(duration_seconds))) {
       return res.status(400).json({ error: "Invalid duration_seconds" });
     }
+
+    const wantsFollowUp = Boolean(follow_up_required) && Boolean(due_date);
 
     await client.query('BEGIN');
 
@@ -67,6 +69,7 @@ router.post("/", requireAuth, requireKnownUser, async (req, res, next) => {
     ];
 
     const activityResult = await client.query(insertActivityQuery, activityValues);
+    const newActivity = activityResult.rows[0];
 
     const updateLeadQuery = `
       UPDATE leads
@@ -77,10 +80,26 @@ router.post("/", requireAuth, requireKnownUser, async (req, res, next) => {
     
     await client.query(updateLeadQuery, [activity_type, lead_id]);
 
+    // Auto-create follow-up if requested with due_date
+    if (wantsFollowUp) {
+      await client.query(
+        `INSERT INTO follow_ups (lead_id, activity_id, notes, due_date, assigned_to, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          lead_id,
+          newActivity.id,
+          cleanText(follow_up_notes),
+          due_date,
+          req.user.id,
+          req.user.id,
+        ]
+      );
+    }
+
     await client.query('COMMIT');
 
     res.status(201).json({
-      data: activityResult.rows[0]
+      data: newActivity
     });
   } catch (error) {
     await client.query('ROLLBACK');

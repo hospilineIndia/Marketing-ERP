@@ -45,7 +45,7 @@ function getGroupLabel(dateString) {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getLeadDetails, getLeadActivities } from "@/services/api";
+import { getLeadDetails, getLeadActivities, getLeadFollowUps, updateFollowUp } from "@/services/api";
 
 export function LeadDetailsPage() {
   const { id } = useParams();
@@ -53,8 +53,10 @@ export function LeadDetailsPage() {
   
   const [lead, setLead] = useState(null);
   const [activities, setActivities] = useState([]);
+  const [followUps, setFollowUps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [completingId, setCompletingId] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -62,13 +64,15 @@ export function LeadDetailsPage() {
         setLoading(true);
         setError(null);
         
-        const [leadRes, activitiesRes] = await Promise.all([
+        const [leadRes, activitiesRes, followUpsRes] = await Promise.all([
           getLeadDetails(id),
-          getLeadActivities(id)
+          getLeadActivities(id),
+          getLeadFollowUps(id)
         ]);
         
         setLead(leadRes.data);
         setActivities(activitiesRes.data);
+        setFollowUps(followUpsRes.data || []);
       } catch (err) {
         console.error("Failed to load lead details", err);
         setError("Could not load lead details. Please try again.");
@@ -79,6 +83,22 @@ export function LeadDetailsPage() {
     
     fetchData();
   }, [id]);
+
+  const handleCompleteFollowUp = async (followUpId) => {
+    try {
+      setCompletingId(followUpId);
+      await updateFollowUp(followUpId, { status: "completed" });
+      setFollowUps((prev) =>
+        prev.map((f) =>
+          f.id === followUpId ? { ...f, status: "completed", completed_at: new Date().toISOString() } : f
+        )
+      );
+    } catch {
+      // silent — non-critical
+    } finally {
+      setCompletingId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -151,6 +171,74 @@ export function LeadDetailsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Follow-ups Section */}
+      {followUps.length > 0 && (
+        <div className="px-4">
+          <h3 className="font-bold text-lg text-foreground flex items-center gap-2 mb-4">
+            <CalendarClock className="h-5 w-5 text-muted-foreground" />
+            Follow-ups
+          </h3>
+          <div className="space-y-3">
+            {followUps.map((f) => {
+              const isPending   = f.status === "pending";
+              const isOverdue   = isPending && new Date(f.due_date) < new Date();
+              const dueLabel    = new Date(f.due_date).toLocaleDateString(undefined, {
+                day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+              });
+              return (
+                <Card key={f.id} className="border-none shadow-sm">
+                  <CardContent className="p-4 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        {f.title && <p className="text-sm font-bold text-foreground">{f.title}</p>}
+                        {f.notes && <p className="text-xs text-muted-foreground mt-0.5">{f.notes}</p>}
+                      </div>
+                      {f.status === "completed" ? (
+                        <Badge className="shrink-0 bg-emerald-100 text-emerald-700 border-emerald-200 border text-[10px]">
+                          Done
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className={`shrink-0 text-[10px] font-bold ${
+                            isOverdue
+                              ? "bg-red-50 text-red-700 border-red-200"
+                              : "bg-amber-50 text-amber-700 border-amber-200"
+                          }`}
+                        >
+                          {isOverdue ? "Overdue" : "Pending"}
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1 border-t border-dashed border-muted/60">
+                      <span className={`text-xs font-semibold flex items-center gap-1 ${
+                        isOverdue ? "text-red-600" : "text-muted-foreground"
+                      }`}>
+                        <CalendarClock className="h-3.5 w-3.5" />
+                        {dueLabel}
+                      </span>
+                      {isPending && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-3 text-xs font-bold bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                          disabled={completingId === f.id}
+                          onClick={() => handleCompleteFollowUp(f.id)}
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                          {completingId === f.id ? "Saving…" : "Mark Done"}
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Timeline Section */}
       <div className="px-4">

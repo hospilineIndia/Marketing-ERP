@@ -213,6 +213,33 @@ export const initializeDatabase = async () => {
     console.warn("Could not apply Location System upgrade:", error.message);
   }
 
+  // Migration: Follow-up Task System
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS follow_ups (
+        id           SERIAL PRIMARY KEY,
+        lead_id      INTEGER NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+        activity_id  INTEGER REFERENCES activities(id) ON DELETE SET NULL,
+        title        TEXT,
+        notes        TEXT,
+        due_date     TIMESTAMPTZ NOT NULL,
+        status       VARCHAR(20) NOT NULL DEFAULT 'pending',
+        priority     VARCHAR(20) DEFAULT 'medium',
+        assigned_to  INTEGER NOT NULL REFERENCES users(id),
+        created_by   INTEGER NOT NULL REFERENCES users(id),
+        completed_at TIMESTAMPTZ,
+        created_at   TIMESTAMPTZ DEFAULT NOW(),
+        updated_at   TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_followups_assigned_due ON follow_ups (assigned_to, due_date);
+      CREATE INDEX IF NOT EXISTS idx_followups_lead ON follow_ups (lead_id);
+    `);
+    console.info("Follow-up System schema verified.");
+  } catch (error) {
+    console.warn("Could not apply Follow-up System schema:", error.message);
+  }
+
   schemaReady = true;
 };
 

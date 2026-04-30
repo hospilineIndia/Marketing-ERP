@@ -119,4 +119,25 @@ export const createActivity = async (data) => {
   return response.data;
 };
 
+// --- Follow-up API ---
+export const getFollowUps = async (params = {}) => {
+  const response = await api.get("/followups", { params });
+  return response.data;
+};
+
+export const getLeadFollowUps = async (leadId) => {
+  const response = await api.get(`/followups/lead/${leadId}`);
+  return response.data;
+};
+
+export const createFollowUp = async (data) => {
+  const response = await api.post("/followups", data);
+  return response.data;
+};
+
+export const updateFollowUp = async (id, data) => {
+  const response = await api.patch(`/followups/${id}`, data);
+  return response.data;
+};
+
 export default api;
