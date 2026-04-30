@@ -120,13 +120,13 @@ export const createActivity = async (data) => {
 };
 
 // --- KPI API ---
-export const getKPI = async () => {
-  const response = await api.get("/kpi");
+export const getKPI = async (range = 'today') => {
+  const response = await api.get("/kpi", { params: { range } });
   return response.data;
 };
 
-export const getAdminKPI = async () => {
-  const response = await api.get("/kpi/admin");
+export const getAdminKPI = async (range = 'today') => {
+  const response = await api.get("/kpi/admin", { params: { range } });
   return response.data;
 };
 

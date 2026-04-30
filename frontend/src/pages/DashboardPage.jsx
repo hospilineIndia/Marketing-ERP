@@ -57,17 +57,18 @@ export function DashboardPage() {
   const [adminKpi, setAdminKpi] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [range, setRange] = useState('today');
 
   useEffect(() => {
     const fetch = async () => {
       try {
         setLoading(true);
         setError(null);
-        const userRes = await getKPI();
+        const userRes = await getKPI(range);
         setKpi(userRes.data);
 
         if (isAdmin) {
-          const adminRes = await getAdminKPI();
+          const adminRes = await getAdminKPI(range);
           setAdminKpi(adminRes.data);
         }
       } catch {
@@ -77,7 +78,7 @@ export function DashboardPage() {
       }
     };
     fetch();
-  }, [isAdmin]);
+  }, [isAdmin, range]);
 
   return (
     <div className="space-y-6 pb-32 overflow-x-hidden max-w-full">
@@ -95,6 +96,24 @@ export function DashboardPage() {
         </CardHeader>
       </Card>
 
+      {/* Range Toggle */}
+      <div className="grid grid-cols-3 gap-1 bg-muted/30 p-1 rounded-xl">
+        {[{key:'today',label:'Today'},{key:'week',label:'Week'},{key:'month',label:'Month'}].map(({key,label}) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setRange(key)}
+            className={`h-9 rounded-lg text-sm font-bold transition-all ${
+              range === key
+                ? 'bg-white shadow text-primary'
+                : 'text-muted-foreground hover:bg-muted/50'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {error && (
         <div className="rounded-xl bg-destructive/10 p-4 text-sm font-semibold text-destructive flex items-center gap-2">
           <AlertCircle className="h-4 w-4 shrink-0" />
@@ -110,9 +129,11 @@ export function DashboardPage() {
       ) : kpi ? (
         <div className="space-y-6">
 
-          {/* Section 1: Today's Activity */}
+          {/* Section 1: Activity */}
           <div className="space-y-3">
-            <SectionLabel>Today's Activity</SectionLabel>
+            <SectionLabel>
+              {range === 'today' ? "Today's Activity" : range === 'week' ? "This Week's Activity" : "This Month's Activity"}
+            </SectionLabel>
             <div className="grid grid-cols-3 gap-3">
               <KpiCard label="Calls"         value={kpi.calls}            color="emerald" icon={Phone} />
               <KpiCard label="Field Visits"  value={kpi.field_visits}     color="blue"    icon={MapPin} />

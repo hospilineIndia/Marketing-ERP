@@ -4,23 +4,39 @@ import { requireAuth, requireKnownUser } from "../../middlewares/auth.middleware
 
 const router = Router();
 
-// Safe numeric converter — always returns a number, never null/NaN
+// Safe numeric converter
 const n = (val, decimals = 1) => {
   const num = parseFloat(val);
   return isNaN(num) ? 0 : parseFloat(num.toFixed(decimals));
 };
 
-// --- GET /kpi — Current user metrics (today only, timezone-safe) ---
+// Compute start date from range param — always JS-side to avoid DB timezone drift
+function getStartDate(range) {
+  const d = new Date();
+
+  if (range === "week") {
+    const diff = d.getDate() - d.getDay(); // back to Sunday
+    d.setDate(diff);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+
+  if (range === "month") {
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  }
+
+  // default: today
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+// --- GET /kpi?range=today|week|month ---
 router.get("/", requireAuth, requireKnownUser, async (req, res, next) => {
   try {
-    const userId = req.user.id;
-
-    // Compute start-of-day in server/app timezone — avoids CURRENT_DATE DB timezone drift
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+    const userId    = req.user.id;
+    const startDate = getStartDate(req.query.range);
 
     const [activityRes, followUpRes, durationRes, completionTimeRes] = await Promise.all([
-      // Today's activity counts
       db.query(
         `SELECT
            COUNT(*) FILTER (WHERE activity_type = 'call')  AS calls,
@@ -29,10 +45,9 @@ router.get("/", requireAuth, requireKnownUser, async (req, res, next) => {
          FROM activities
          WHERE created_by = $1
            AND created_at >= $2`,
-        [userId, startOfDay]
+        [userId, startDate]
       ),
 
-      // Today's follow-up stats
       db.query(
         `SELECT
            COUNT(*)                                                         AS total,
@@ -41,10 +56,9 @@ router.get("/", requireAuth, requireKnownUser, async (req, res, next) => {
          FROM follow_ups
          WHERE assigned_to = $1
            AND created_at >= $2`,
-        [userId, startOfDay]
+        [userId, startDate]
       ),
 
-      // Today's avg call duration (calls with recorded duration only)
       db.query(
         `SELECT AVG(duration_seconds) AS avg_call_duration
          FROM activities
@@ -52,10 +66,9 @@ router.get("/", requireAuth, requireKnownUser, async (req, res, next) => {
            AND activity_type = 'call'
            AND duration_seconds IS NOT NULL
            AND created_at >= $2`,
-        [userId, startOfDay]
+        [userId, startDate]
       ),
 
-      // Today's avg follow-up resolution time in hours
       db.query(
         `SELECT AVG(EXTRACT(EPOCH FROM (completed_at - created_at)) / 3600) AS avg_hours
          FROM follow_ups
@@ -63,7 +76,7 @@ router.get("/", requireAuth, requireKnownUser, async (req, res, next) => {
            AND status = 'completed'
            AND completed_at IS NOT NULL
            AND created_at >= $2`,
-        [userId, startOfDay]
+        [userId, startDate]
       ),
     ]);
 
@@ -97,17 +110,15 @@ router.get("/", requireAuth, requireKnownUser, async (req, res, next) => {
   }
 });
 
-// --- GET /kpi/admin — Team-wide metrics (admin only) ---
+// --- GET /kpi/admin?range=today|week|month ---
 router.get("/admin", requireAuth, requireKnownUser, async (req, res, next) => {
   try {
     if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Admin access required." });
     }
 
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+    const startDate = getStartDate(req.query.range);
 
-    // Subquery pattern prevents row multiplication from multiple LEFT JOINs
     const result = await db.query(
       `SELECT
          u.id,
@@ -143,7 +154,7 @@ router.get("/admin", requireAuth, requireKnownUser, async (req, res, next) => {
        ) f ON f.assigned_to = u.id
 
        ORDER BY u.name ASC`,
-      [startOfDay]
+      [startDate]
     );
 
     const rows = result.rows.map((r) => {
