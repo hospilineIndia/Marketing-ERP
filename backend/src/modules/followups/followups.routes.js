@@ -81,12 +81,23 @@ router.get("/", requireAuth, requireKnownUser, async (req, res, next) => {
       FROM follow_ups f
       JOIN leads l ON l.id = f.lead_id
       WHERE ${conditions.join(" AND ")}
-      ORDER BY f.due_date ASC
+      ORDER BY
+        CASE
+          WHEN f.status = 'pending' AND f.due_date < NOW() THEN 0
+          WHEN f.status = 'pending'                        THEN 1
+          ELSE 2
+        END,
+        f.due_date ASC
       LIMIT 50
     `;
 
     const result = await db.query(query, values);
-    res.json({ data: result.rows });
+    const now = new Date();
+    const overdue_count = result.rows.filter(
+      (r) => r.status === 'pending' && new Date(r.due_date) < now
+    ).length;
+
+    res.json({ data: result.rows, overdue_count });
   } catch (error) {
     next(error);
   }

@@ -52,7 +52,8 @@ router.get("/", requireAuth, requireKnownUser, async (req, res, next) => {
         `SELECT
            COUNT(*)                                                         AS total,
            COUNT(*) FILTER (WHERE status = 'completed')                    AS completed,
-           COUNT(*) FILTER (WHERE status = 'pending' AND due_date < NOW()) AS missed
+           COUNT(*) FILTER (WHERE status = 'pending' AND due_date < NOW()) AS missed,
+           COUNT(*) FILTER (WHERE status = 'pending' AND due_date < NOW()) AS overdue
          FROM follow_ups
          WHERE assigned_to = $1
            AND created_at >= $2`,
@@ -97,7 +98,8 @@ router.get("/", requireAuth, requireKnownUser, async (req, res, next) => {
 
         followups_created:   total,
         followups_completed: completed,
-        followups_missed:    Number(fu.missed) || 0,
+        followups_missed:    Number(fu.missed)   || 0,
+        overdue_followups:   Number(fu.overdue)  || 0,
 
         completion_rate,
 

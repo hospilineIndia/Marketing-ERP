@@ -144,7 +144,7 @@ export function DashboardPage() {
           {/* Section 2: Follow-up Summary */}
           <div className="space-y-3">
             <SectionLabel>Follow-up Summary</SectionLabel>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <KpiCard
                 label="Completed"
                 value={kpi.followups_completed}
@@ -158,6 +158,12 @@ export function DashboardPage() {
                 icon={AlertCircle}
               />
               <KpiCard
+                label="Overdue Now"
+                value={kpi.overdue_followups ?? 0}
+                color={kpi.overdue_followups > 0 ? 'red' : 'muted'}
+                icon={AlertCircle}
+              />
+              <KpiCard
                 label="Rate"
                 value={`${kpi.completion_rate}%`}
                 sub={`${kpi.followups_completed} of ${kpi.followups_created}`}
@@ -165,6 +171,12 @@ export function DashboardPage() {
                 icon={CalendarClock}
               />
             </div>
+            {kpi.overdue_followups > 0 && (
+              <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-xs font-bold text-red-700 flex items-center gap-2">
+                <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                {kpi.overdue_followups} follow-up{kpi.overdue_followups > 1 ? 's are' : ' is'} overdue — check the Follow-ups tab.
+              </div>
+            )}
           </div>
 
           {/* Section 3: Performance */}

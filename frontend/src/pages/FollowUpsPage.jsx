@@ -36,6 +36,7 @@ export function FollowUpsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [completing, setCompleting] = useState(null);
+  const [overdueCount, setOverdueCount] = useState(0);
 
   const fetchFollowUps = async () => {
     try {
@@ -43,6 +44,7 @@ export function FollowUpsPage() {
       setError(null);
       const res = await getFollowUps(tab === "pending" ? { status: "pending" } : { status: "completed" });
       setFollowUps(res.data || []);
+      setOverdueCount(tab === "pending" ? (res.overdue_count ?? 0) : 0);
     } catch {
       setError("Failed to load follow-ups.");
     } finally {
@@ -112,6 +114,14 @@ export function FollowUpsPage() {
         <div className="rounded-xl bg-destructive/10 p-4 text-sm font-semibold text-destructive flex items-center gap-2">
           <AlertCircle className="h-4 w-4 shrink-0" />
           {error}
+        </div>
+      )}
+
+      {/* Overdue banner */}
+      {!loading && tab === "pending" && overdueCount > 0 && (
+        <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm font-bold text-red-700 flex items-center gap-2">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          You have {overdueCount} overdue follow-up{overdueCount > 1 ? 's' : ''} — action needed!
         </div>
       )}
 
@@ -190,7 +200,9 @@ function FollowUpCard({ item, completing, onComplete, onNavigate }) {
   const isCompleted = item.status === "completed";
 
   return (
-    <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
+    <Card className={`border-none shadow-sm hover:shadow-md transition-shadow ${
+      !isCompleted && overdue ? 'ring-1 ring-red-300' : ''
+    }`}>
       <CardContent className="p-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
