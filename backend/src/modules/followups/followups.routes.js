@@ -75,13 +75,14 @@ router.get("/", requireAuth, requireKnownUser, async (req, res, next) => {
     const query = `
       SELECT
         f.*,
-        l.name  AS lead_name,
-        l.phone AS lead_phone,
+        l.name    AS lead_name,
+        l.phone   AS lead_phone,
         l.company AS lead_company
       FROM follow_ups f
       JOIN leads l ON l.id = f.lead_id
       WHERE ${conditions.join(" AND ")}
       ORDER BY f.due_date ASC
+      LIMIT 50
     `;
 
     const result = await db.query(query, values);
@@ -106,7 +107,7 @@ router.get("/lead/:lead_id", requireAuth, requireKnownUser, async (req, res, nex
     }
 
     const result = await db.query(
-      `SELECT * FROM follow_ups WHERE lead_id = $1 ORDER BY due_date ASC`,
+      `SELECT * FROM follow_ups WHERE lead_id = $1 ORDER BY due_date ASC LIMIT 50`,
       [lead_id]
     );
 
@@ -131,11 +132,15 @@ router.patch("/:id", requireAuth, requireKnownUser, async (req, res, next) => {
       return res.status(403).json({ error: "Follow-up not found or access denied." });
     }
 
-    const validStatuses = ['pending', 'completed', 'cancelled'];
+    const allowed = ['pending', 'completed'];
+    if (status && !allowed.includes(status)) {
+      return res.status(400).json({ error: "Invalid status. Allowed: pending, completed." });
+    }
+
     const validPriorities = ['low', 'medium', 'high'];
 
     const updates = {};
-    if (status && validStatuses.includes(status)) {
+    if (status && allowed.includes(status)) {
       updates.status = status;
       if (status === 'completed') updates.completed_at = 'NOW()';
     }

@@ -80,20 +80,26 @@ router.post("/", requireAuth, requireKnownUser, async (req, res, next) => {
     
     await client.query(updateLeadQuery, [activity_type, lead_id]);
 
-    // Auto-create follow-up if requested with due_date
+    // Auto-create follow-up if requested with due_date (skip if already exists for this activity)
     if (wantsFollowUp) {
-      await client.query(
-        `INSERT INTO follow_ups (lead_id, activity_id, notes, due_date, assigned_to, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [
-          lead_id,
-          newActivity.id,
-          cleanText(follow_up_notes),
-          due_date,
-          req.user.id,
-          req.user.id,
-        ]
+      const existing = await client.query(
+        "SELECT id FROM follow_ups WHERE activity_id = $1 LIMIT 1",
+        [newActivity.id]
       );
+      if (existing.rows.length === 0) {
+        await client.query(
+          `INSERT INTO follow_ups (lead_id, activity_id, notes, due_date, assigned_to, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            lead_id,
+            newActivity.id,
+            cleanText(follow_up_notes),
+            due_date,
+            req.user.id,
+            req.user.id,
+          ]
+        );
+      }
     }
 
     await client.query('COMMIT');

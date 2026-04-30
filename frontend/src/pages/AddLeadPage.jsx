@@ -156,7 +156,9 @@ export function AddLeadPage() {
             ? Number(formData.duration_seconds) 
             : undefined,
           follow_up_required: formData.follow_up_required,
-          due_date: formData.follow_up_required ? formData.due_date : undefined,
+          due_date: formData.follow_up_required
+            ? new Date(formData.due_date).toISOString()
+            : undefined,
           follow_up_notes: formData.follow_up_required ? formData.follow_up_notes : undefined,
           planned_location_text: planned || undefined,
           latitude,
@@ -230,6 +232,14 @@ export function AddLeadPage() {
     if (formData.follow_up_required && !formData.due_date) {
       setError("Due date is required when Follow-up is checked.");
       return;
+    }
+
+    if (formData.follow_up_required && formData.due_date) {
+      const due = new Date(formData.due_date);
+      if (due < new Date()) {
+        setError("Due date must be in the future.");
+        return;
+      }
     }
 
     if (!isExistingLead && !formData.location_text.trim()) {
