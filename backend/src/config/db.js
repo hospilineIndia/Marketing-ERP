@@ -194,6 +194,25 @@ export const initializeDatabase = async () => {
     console.warn("Could not setup Geo Tracking schema:", error.message);
   }
 
+  // Migration: Location System Upgrade
+  try {
+    await db.query(`
+      ALTER TABLE leads
+        ADD COLUMN IF NOT EXISTS location_text   TEXT,
+        ADD COLUMN IF NOT EXISTS lead_latitude   DOUBLE PRECISION,
+        ADD COLUMN IF NOT EXISTS lead_longitude  DOUBLE PRECISION,
+        ADD COLUMN IF NOT EXISTS location_source TEXT;
+
+      ALTER TABLE activities
+        ADD COLUMN IF NOT EXISTS planned_location_text  TEXT,
+        ADD COLUMN IF NOT EXISTS planned_latitude       DOUBLE PRECISION,
+        ADD COLUMN IF NOT EXISTS planned_longitude      DOUBLE PRECISION;
+    `);
+    console.info("Location System upgrade schema verified.");
+  } catch (error) {
+    console.warn("Could not apply Location System upgrade:", error.message);
+  }
+
   schemaReady = true;
 };
 

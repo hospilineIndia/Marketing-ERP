@@ -140,6 +140,15 @@ export function LeadDetailsPage() {
             </div>
             <span className="text-emerald-900">{lead.phone || "No phone"}</span>
           </div>
+
+          {lead.location_text && (
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <div className="rounded-full bg-emerald-100 p-1.5 text-emerald-700">
+                <MapPin className="h-3.5 w-3.5" />
+              </div>
+              <span className="text-emerald-900 font-semibold">Base Location: {lead.location_text}</span>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -227,7 +236,7 @@ export function LeadDetailsPage() {
                               <p className="text-sm text-muted-foreground italic">No notes provided.</p>
                             )}
 
-                            {(activity.duration_seconds || activity.follow_up_required || (activity.latitude && activity.longitude)) && (
+                            {(activity.duration_seconds || activity.follow_up_required || (activity.latitude && activity.longitude) || activity.planned_location_text) && (
                               <div className="flex flex-wrap gap-3 pt-3 border-t border-dashed border-muted/60 mt-3">
                                 {activity.duration_seconds > 0 && (
                                   <span className="text-xs font-semibold text-muted-foreground bg-muted/40 px-2.5 py-1 rounded-md">
@@ -251,8 +260,14 @@ export function LeadDetailsPage() {
                                     }}
                                   >
                                     <MapPin className="h-3 w-3" />
-                                    View Location
+                                    View Visit Location
                                   </Button>
+                                )}
+                                {activity.planned_location_text && (
+                                  <span className="text-xs font-semibold text-violet-700 bg-violet-50 px-2.5 py-1 rounded-md flex items-center gap-1.5">
+                                    <MapPin className="h-3.5 w-3.5" />
+                                    Planned Visit: {activity.planned_location_text}
+                                  </span>
                                 )}
                               </div>
                             )}

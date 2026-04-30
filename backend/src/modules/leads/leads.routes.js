@@ -213,7 +213,7 @@ router.post("/", requireAuth, requireKnownUser, async (req, res, next) => {
   const client = await db.connect();
 
   try {
-    const { name, phone, company, email, activity_type = 'field', notes, latitude, longitude } = req.body;
+    const { name, phone, company, email, activity_type = 'field', notes, latitude, longitude, location_text, lead_latitude, lead_longitude, location_source } = req.body;
 
     const cleanedName = cleanText(name);
     if (!cleanedName) {
@@ -238,11 +238,23 @@ router.post("/", requireAuth, requireKnownUser, async (req, res, next) => {
     const parsedLatitude = parseNumberOrNull(latitude);
     const parsedLongitude = parseNumberOrNull(longitude);
 
+    // --- New location fields ---
+    const cleanedLocationText = cleanText(location_text);
+    const parsedLeadLatitude  = parseNumberOrNull(lead_latitude);
+    const parsedLeadLongitude = parseNumberOrNull(lead_longitude);
+    const cleanedLocationSource = ['manual', 'gps', 'ocr', 'unknown'].includes(location_source)
+      ? location_source
+      : 'manual';
+
     await client.query('BEGIN');
 
     const insertLeadQuery = `
-      INSERT INTO leads (name, phone, company, email, latitude, longitude, created_by, last_activity_at, last_activity_type)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8)
+      INSERT INTO leads (
+        name, phone, company, email, latitude, longitude,
+        location_text, lead_latitude, lead_longitude, location_source,
+        created_by, last_activity_at, last_activity_type
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), $12)
       RETURNING *;
     `;
 
@@ -253,6 +265,10 @@ router.post("/", requireAuth, requireKnownUser, async (req, res, next) => {
       cleanText(email),
       parsedLatitude,
       parsedLongitude,
+      cleanedLocationText,
+      parsedLeadLatitude,
+      parsedLeadLongitude,
+      cleanedLocationSource,
       req.user.id,
       activity_type
     ];
@@ -296,7 +312,9 @@ router.get("/:id", requireAuth, requireKnownUser, async (req, res, next) => {
   try {
     const { id } = req.params;
     const query = `
-      SELECT id, name, phone, email, company, created_at, last_activity_at, last_activity_type
+      SELECT id, name, phone, email, company,
+             location_text, lead_latitude, lead_longitude, location_source,
+             created_at, last_activity_at, last_activity_type
       FROM leads
       WHERE id = $1 AND created_by = $2
     `;
@@ -366,11 +384,36 @@ router.patch("/:id", requireAuth, requireKnownUser, async (req, res, next) => {
     };
 
     // Only process fields that are present in the request body
-    for (const field of ["name", "phone", "email", "gst", "company"]) {
+    for (const field of ["name", "phone", "email", "gst", "company", "location_text", "lead_latitude", "lead_longitude", "location_source"]) {
       if (Object.prototype.hasOwnProperty.call(body, field)) {
         if (field === "company") {
           const val = body.company?.toString().trim();
           if (val) updates.company = val;
+          continue;
+        }
+
+        if (field === "location_text") {
+          const val = cleanText(body.location_text);
+          if (val !== null) updates.location_text = val;
+          continue;
+        }
+
+        if (field === "lead_latitude" || field === "lead_longitude") {
+          const raw = body[field];
+          if (raw === null || raw === "") {
+            updates[field] = null;
+          } else {
+            const num = Number(raw);
+            if (!isNaN(num)) updates[field] = num;
+          }
+          continue;
+        }
+
+        if (field === "location_source") {
+          const val = ['manual', 'gps', 'ocr', 'unknown'].includes(body.location_source)
+            ? body.location_source
+            : null;
+          if (val !== null) updates.location_source = val;
           continue;
         }
 

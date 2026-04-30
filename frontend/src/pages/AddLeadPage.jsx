@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Loader2, Phone, MapPin, Search, CheckCircle2 } from "lucide-react";
+import { Loader2, Phone, MapPin, Search, CheckCircle2, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,12 +8,14 @@ import { Input } from "@/components/ui/input";
 import { createLead, createActivity, getLeadByPhone } from "@/services/api";
 
 export function AddLeadPage() {
+  const MAX_GPS_ACCURACY = 150; // metres — readings above this are discarded
   const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [checkingPhone, setCheckingPhone] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [locationWarning, setLocationWarning] = useState(null);
 
   const [phone, setPhone] = useState("");
   const [isExistingLead, setIsExistingLead] = useState(false);
@@ -22,6 +24,8 @@ export function AddLeadPage() {
   const [formData, setFormData] = useState({
     name: "",
     company: "",
+    location_text: "",
+    planned_location_text: "",
     activity_type: "field",
     notes: "",
     call_outcome: "",
@@ -134,6 +138,13 @@ export function AddLeadPage() {
   const submitForm = async (latitude = null, longitude = null) => {
     try {
       if (isExistingLead) {
+        const planned = formData.planned_location_text?.trim();
+        if (planned && planned.length < 3) {
+          setError("Planned location must be at least 3 characters.");
+          setLoading(false);
+          return;
+        }
+
         await createActivity({
           lead_id: existingLead.id,
           activity_type: formData.activity_type,
@@ -143,6 +154,7 @@ export function AddLeadPage() {
             ? Number(formData.duration_seconds) 
             : undefined,
           follow_up_required: formData.follow_up_required,
+          planned_location_text: planned || undefined,
           latitude,
           longitude
         });
@@ -159,16 +171,23 @@ export function AddLeadPage() {
           company: formData.company,
           activity_type: formData.activity_type,
           notes: formData.notes,
+          location_text: formData.location_text.trim(),
+          location_source: latitude !== null && latitude !== undefined ? 'gps' : 'manual',
+          lead_latitude: latitude ?? undefined,
+          lead_longitude: longitude ?? undefined,
           latitude,
           longitude
         });
       }
       
       setSuccess(true);
+      setLocationWarning(null);
       setPhone("");
       setFormData({
         name: "",
         company: "",
+        location_text: "",
+        planned_location_text: "",
         activity_type: "field",
         notes: "",
         call_outcome: "",
@@ -202,29 +221,42 @@ export function AddLeadPage() {
       return;
     }
 
+    if (!isExistingLead && !formData.location_text.trim()) {
+      setError("Location / Area is required for new leads.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
+    setLocationWarning(null);
     setSuccess(false);
 
     try {
       if (formData.activity_type === 'field') {
         if (!("geolocation" in navigator)) {
-          setError("Location tracking is not supported by this browser. Please use a modern browser.");
-          setLoading(false);
+          submitForm(null, null);
           return;
         }
 
         navigator.geolocation.getCurrentPosition(
           (position) => {
-            submitForm(position.coords.latitude, position.coords.longitude);
+            const { latitude, longitude, accuracy } = position.coords;
+            if (accuracy > MAX_GPS_ACCURACY) {
+              setLocationWarning(`GPS accuracy is low (±${Math.round(accuracy)}m) — saved without coordinates.`);
+              submitForm(null, null);
+            } else {
+              submitForm(latitude, longitude);
+            }
           },
           (err) => {
-            let msg = "Could not capture location.";
-            if (err.code === 1) msg = "Location permission denied. Please enable location to log field visits.";
-            else if (err.code === 3) msg = "Location timeout. Please ensure you have a GPS signal and try again.";
-            
-            setError(msg);
-            setLoading(false);
+            if (err.code === 1) {
+              setLocationWarning("Location permission denied — saved without GPS coordinates.");
+            } else if (err.code === 3) {
+              setLocationWarning("GPS timed out — saved without GPS coordinates.");
+            } else {
+              setLocationWarning("GPS not available — location saved manually.");
+            }
+            submitForm(null, null);
           },
           { timeout: 10000, enableHighAccuracy: true, maximumAge: 0 }
         );
@@ -268,6 +300,13 @@ export function AddLeadPage() {
               </div>
             )}
 
+            {locationWarning && (
+              <div className="rounded-xl bg-amber-500/10 p-4 text-sm font-semibold text-amber-700 flex items-center gap-2 animate-in fade-in">
+                <AlertCircle className="h-5 w-5 shrink-0" />
+                {locationWarning}
+              </div>
+            )}
+
             {/* 1. PRIMARY PHONE FIELD */}
             <div className="space-y-1.5">
               <label className="text-sm font-bold text-foreground pl-1">Phone Number *</label>
@@ -293,15 +332,39 @@ export function AddLeadPage() {
 
             {/* 2. DYNAMIC MODE UI */}
             {isExistingLead && existingLead ? (
-              <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4 flex flex-col gap-1">
-                <div className="flex items-center gap-2 text-emerald-800 font-bold">
-                  <CheckCircle2 className="h-5 w-5" />
-                  Existing Lead Found
+              <>
+                <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4 flex flex-col gap-1">
+                  <div className="flex items-center gap-2 text-emerald-800 font-bold">
+                    <CheckCircle2 className="h-5 w-5" />
+                    Existing Lead Found
+                  </div>
+                  <div className="text-sm text-emerald-700 font-medium ml-7">
+                    {existingLead.name} {existingLead.company && `(${existingLead.company})`}
+                  </div>
                 </div>
-                <div className="text-sm text-emerald-700 font-medium ml-7">
-                  {existingLead.name} {existingLead.company && `(${existingLead.company})`}
-                </div>
-              </div>
+
+                {/* Planned Visit Location — only for existing leads */}
+                {formData.activity_type === "field" && (
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-bold text-foreground pl-1">
+                      Planned Visit Location
+                    </label>
+                    <div className="relative">
+                      <MapPin className="absolute left-4 top-3.5 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        name="planned_location_text"
+                        placeholder="e.g. Bandra East, Mumbai (Optional)"
+                        className="h-12 pl-12 rounded-xl bg-muted/50 border-none focus-visible:ring-primary"
+                        value={formData.planned_location_text}
+                        onChange={(e) => {
+                          handleChange(e);
+                          if (error) setError(null);
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="space-y-4 animate-in fade-in duration-300">
                 <Input
@@ -319,6 +382,24 @@ export function AddLeadPage() {
                   value={formData.company}
                   onChange={handleChange}
                 />
+                <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-foreground pl-1">
+                    Location / Area *
+                  </label>
+                  <div className="relative">
+                    <MapPin className="absolute left-4 top-3.5 h-5 w-5 text-muted-foreground" />
+                    <Input
+                      name="location_text"
+                      placeholder="e.g. Andheri West, Mumbai"
+                      className="h-12 pl-12 rounded-xl bg-muted/50 border-none focus-visible:ring-primary"
+                      value={formData.location_text}
+                      onChange={(e) => {
+                        handleChange(e);
+                        if (error) setError(null);
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
             )}
 

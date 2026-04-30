@@ -9,7 +9,7 @@ router.post("/", requireAuth, requireKnownUser, async (req, res, next) => {
   const client = await db.connect();
 
   try {
-    const { lead_id, activity_type, notes, call_outcome, duration_seconds, follow_up_required, latitude, longitude } = req.body;
+    const { lead_id, activity_type, notes, call_outcome, duration_seconds, follow_up_required, latitude, longitude, planned_location_text, planned_latitude, planned_longitude } = req.body;
 
     const safeNumber = (val) => {
       if (val === undefined || val === null || val === "") return null;
@@ -42,8 +42,12 @@ router.post("/", requireAuth, requireKnownUser, async (req, res, next) => {
     }
 
     const insertActivityQuery = `
-      INSERT INTO activities (lead_id, activity_type, notes, call_outcome, duration_seconds, follow_up_required, created_by, latitude, longitude)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      INSERT INTO activities (
+        lead_id, activity_type, notes, call_outcome, duration_seconds,
+        follow_up_required, created_by, latitude, longitude,
+        planned_location_text, planned_latitude, planned_longitude
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *;
     `;
     
@@ -56,7 +60,10 @@ router.post("/", requireAuth, requireKnownUser, async (req, res, next) => {
       Boolean(follow_up_required),
       req.user.id,
       activity_type === 'field' ? safeNumber(latitude) : null,
-      activity_type === 'field' ? safeNumber(longitude) : null
+      activity_type === 'field' ? safeNumber(longitude) : null,
+      cleanText(planned_location_text),
+      safeNumber(planned_latitude),
+      safeNumber(planned_longitude)
     ];
 
     const activityResult = await client.query(insertActivityQuery, activityValues);
