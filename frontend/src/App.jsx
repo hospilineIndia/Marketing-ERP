@@ -7,6 +7,7 @@ import { LeadDetailsPage } from "@/pages/LeadDetailsPage";
 import { SignupPage } from "@/pages/SignupPage";
 import { AccountPage } from "@/pages/AccountPage";
 import { FollowUpsPage } from "@/pages/FollowUpsPage";
+import { DashboardPage } from "@/pages/DashboardPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import PublicRoute from "@/components/PublicRoute";
 
@@ -75,6 +76,15 @@ function App() {
           element={
             <ProtectedRoute>
               <FollowUpsPage />
+            </ProtectedRoute>
+          } 
+        />
+
+        <Route 
+          path="/dashboard" 
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
             </ProtectedRoute>
           } 
         />

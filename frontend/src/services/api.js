@@ -119,6 +119,17 @@ export const createActivity = async (data) => {
   return response.data;
 };
 
+// --- KPI API ---
+export const getKPI = async () => {
+  const response = await api.get("/kpi");
+  return response.data;
+};
+
+export const getAdminKPI = async () => {
+  const response = await api.get("/kpi/admin");
+  return response.data;
+};
+
 // --- Follow-up API ---
 export const getFollowUps = async (params = {}) => {
   const response = await api.get("/followups", { params });

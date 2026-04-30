@@ -9,6 +9,7 @@ import cardsRoutes from "./modules/cards/cards.routes.js";
 import notesRoutes from "./modules/notes/notes.routes.js";
 import activitiesRoutes from "./modules/activities/activities.routes.js";
 import followupsRoutes from "./modules/followups/followups.routes.js";
+import kpiRoutes from "./modules/kpi/kpi.routes.js";
 import { env } from "./config/env.js";
 import { checkDatabaseConnection, initializeDatabase } from "./config/db.js";
 import { authenticate } from "./middlewares/auth.middleware.js";
@@ -60,6 +61,7 @@ app.use("/api/cards", cardsRoutes);
 app.use("/api/notes", notesRoutes);
 app.use("/api/activities", activitiesRoutes);
 app.use("/api/followups", followupsRoutes);
+app.use("/api/kpi", kpiRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
