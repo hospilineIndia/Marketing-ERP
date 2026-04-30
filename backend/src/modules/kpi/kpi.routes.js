@@ -4,15 +4,20 @@ import { requireAuth, requireKnownUser } from "../../middlewares/auth.middleware
 
 const router = Router();
 
-const toNum = (val, decimals = 1) => {
-  const n = parseFloat(val);
-  return isNaN(n) ? 0 : parseFloat(n.toFixed(decimals));
+// Safe numeric converter — always returns a number, never null/NaN
+const n = (val, decimals = 1) => {
+  const num = parseFloat(val);
+  return isNaN(num) ? 0 : parseFloat(num.toFixed(decimals));
 };
 
-// --- GET /kpi — Current user metrics ---
+// --- GET /kpi — Current user metrics (today only, timezone-safe) ---
 router.get("/", requireAuth, requireKnownUser, async (req, res, next) => {
   try {
     const userId = req.user.id;
+
+    // Compute start-of-day in server/app timezone — avoids CURRENT_DATE DB timezone drift
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
 
     const [activityRes, followUpRes, durationRes, completionTimeRes] = await Promise.all([
       // Today's activity counts
@@ -23,63 +28,68 @@ router.get("/", requireAuth, requireKnownUser, async (req, res, next) => {
            COUNT(*)                                         AS total
          FROM activities
          WHERE created_by = $1
-           AND created_at >= CURRENT_DATE`,
-        [userId]
+           AND created_at >= $2`,
+        [userId, startOfDay]
       ),
 
-      // All-time follow-up stats
+      // Today's follow-up stats
       db.query(
         `SELECT
-           COUNT(*)                                                               AS total,
-           COUNT(*) FILTER (WHERE status = 'completed')                          AS completed,
-           COUNT(*) FILTER (WHERE status = 'pending' AND due_date < NOW())       AS missed
+           COUNT(*)                                                         AS total,
+           COUNT(*) FILTER (WHERE status = 'completed')                    AS completed,
+           COUNT(*) FILTER (WHERE status = 'pending' AND due_date < NOW()) AS missed
          FROM follow_ups
-         WHERE assigned_to = $1`,
-        [userId]
+         WHERE assigned_to = $1
+           AND created_at >= $2`,
+        [userId, startOfDay]
       ),
 
-      // Average call duration (all-time)
+      // Today's avg call duration (calls with recorded duration only)
       db.query(
         `SELECT AVG(duration_seconds) AS avg_call_duration
          FROM activities
          WHERE created_by = $1
            AND activity_type = 'call'
-           AND duration_seconds IS NOT NULL`,
-        [userId]
+           AND duration_seconds IS NOT NULL
+           AND created_at >= $2`,
+        [userId, startOfDay]
       ),
 
-      // Average follow-up completion time in hours
+      // Today's avg follow-up resolution time in hours
       db.query(
         `SELECT AVG(EXTRACT(EPOCH FROM (completed_at - created_at)) / 3600) AS avg_hours
          FROM follow_ups
          WHERE assigned_to = $1
            AND status = 'completed'
-           AND completed_at IS NOT NULL`,
-        [userId]
+           AND completed_at IS NOT NULL
+           AND created_at >= $2`,
+        [userId, startOfDay]
       ),
     ]);
 
     const a  = activityRes.rows[0];
     const fu = followUpRes.rows[0];
 
-    const total     = parseInt(fu.total,     10) || 0;
-    const completed = parseInt(fu.completed, 10) || 0;
-    const completion_rate = total > 0 ? parseFloat(((completed / total) * 100).toFixed(1)) : 0;
+    const total     = Number(fu.total)     || 0;
+    const completed = Number(fu.completed) || 0;
+    const completion_rate = total > 0
+      ? parseFloat(((completed / total) * 100).toFixed(1))
+      : 0;
 
     res.json({
       data: {
-        calls:             parseInt(a.calls,        10) || 0,
-        field_visits:      parseInt(a.field_visits, 10) || 0,
-        total_activities:  parseInt(a.total,        10) || 0,
+        calls:            Number(a.calls)        || 0,
+        field_visits:     Number(a.field_visits) || 0,
+        total_activities: Number(a.total)        || 0,
 
         followups_created:   total,
         followups_completed: completed,
-        followups_missed:    parseInt(fu.missed, 10) || 0,
+        followups_missed:    Number(fu.missed) || 0,
 
         completion_rate,
 
-        avg_call_duration:      toNum(durationRes.rows[0].avg_call_duration, 0),
-        avg_followup_time_hours: toNum(completionTimeRes.rows[0].avg_hours, 1),
+        avg_call_duration:       n(durationRes.rows[0].avg_call_duration, 0),
+        avg_followup_time_hours: n(completionTimeRes.rows[0].avg_hours, 1),
       },
     });
   } catch (error) {
@@ -94,34 +104,62 @@ router.get("/admin", requireAuth, requireKnownUser, async (req, res, next) => {
       return res.status(403).json({ error: "Admin access required." });
     }
 
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    // Subquery pattern prevents row multiplication from multiple LEFT JOINs
     const result = await db.query(
       `SELECT
          u.id,
          u.name,
-         COUNT(a.id) FILTER (WHERE a.activity_type = 'call')  AS calls,
-         COUNT(a.id) FILTER (WHERE a.activity_type = 'field') AS field_visits,
-         COUNT(a.id)                                           AS total_activities,
-         COUNT(f.id) FILTER (WHERE f.status = 'completed')    AS followups_completed,
-         COUNT(f.id)                                           AS followups_total
+
+         COALESCE(a.calls,        0) AS calls,
+         COALESCE(a.field_visits, 0) AS field_visits,
+         COALESCE(a.calls, 0) + COALESCE(a.field_visits, 0) AS total_activities,
+
+         COALESCE(f.completed, 0) AS followups_completed,
+         COALESCE(f.total,     0) AS followups_total
+
        FROM users u
-       LEFT JOIN activities  a ON a.created_by  = u.id
-       LEFT JOIN follow_ups  f ON f.assigned_to = u.id
-       GROUP BY u.id, u.name
-       ORDER BY u.name ASC`
+
+       LEFT JOIN (
+         SELECT
+           created_by,
+           COUNT(*) FILTER (WHERE activity_type = 'call')  AS calls,
+           COUNT(*) FILTER (WHERE activity_type = 'field') AS field_visits
+         FROM activities
+         WHERE created_at >= $1
+         GROUP BY created_by
+       ) a ON a.created_by = u.id
+
+       LEFT JOIN (
+         SELECT
+           assigned_to,
+           COUNT(*) FILTER (WHERE status = 'completed') AS completed,
+           COUNT(*)                                      AS total
+         FROM follow_ups
+         WHERE created_at >= $1
+         GROUP BY assigned_to
+       ) f ON f.assigned_to = u.id
+
+       ORDER BY u.name ASC`,
+      [startOfDay]
     );
 
     const rows = result.rows.map((r) => {
-      const total     = parseInt(r.followups_total,     10) || 0;
-      const completed = parseInt(r.followups_completed, 10) || 0;
+      const total     = Number(r.followups_total)     || 0;
+      const completed = Number(r.followups_completed) || 0;
       return {
         id:               r.id,
         name:             r.name,
-        calls:            parseInt(r.calls,            10) || 0,
-        field_visits:     parseInt(r.field_visits,     10) || 0,
-        total_activities: parseInt(r.total_activities, 10) || 0,
+        calls:            Number(r.calls)            || 0,
+        field_visits:     Number(r.field_visits)     || 0,
+        total_activities: Number(r.total_activities) || 0,
         followups_completed: completed,
         followups_total:     total,
-        completion_rate: total > 0 ? parseFloat(((completed / total) * 100).toFixed(1)) : 0,
+        completion_rate: total > 0
+          ? parseFloat(((completed / total) * 100).toFixed(1))
+          : 0,
       };
     });
 
