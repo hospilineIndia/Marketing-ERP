@@ -87,17 +87,28 @@ router.get("/", requireAuth, requireKnownUser, async (req, res, next) => {
           WHEN f.status = 'pending'                        THEN 1
           ELSE 2
         END,
-        f.due_date ASC
+        f.due_date ASC,
+        f.id ASC
       LIMIT 50
     `;
 
-    const result = await db.query(query, values);
     const now = new Date();
-    const overdue_count = result.rows.filter(
-      (r) => r.status === 'pending' && new Date(r.due_date) < now
-    ).length;
+    const [result, overdueResult] = await Promise.all([
+      db.query(query, values),
+      db.query(
+        `SELECT COUNT(*) AS overdue_count
+         FROM follow_ups
+         WHERE assigned_to = $1
+           AND status = 'pending'
+           AND due_date < NOW()`,
+        [req.user.id]
+      ),
+    ]);
 
-    res.json({ data: result.rows, overdue_count });
+    res.json({
+      data: result.rows,
+      overdue_count: Number(overdueResult.rows[0].overdue_count) || 0,
+    });
   } catch (error) {
     next(error);
   }

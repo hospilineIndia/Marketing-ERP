@@ -153,7 +153,7 @@ export function DashboardPage() {
               />
               <KpiCard
                 label="Missed"
-                value={kpi.followups_missed}
+                value={kpi.overdue_followups ?? 0}
                 color="red"
                 icon={AlertCircle}
               />
